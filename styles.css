@@ -1,0 +1,41 @@
+.adhd-processed {
+  /* Base style for processed text if needed */
+}
+
+.adhd-n {
+  /* Nouns - Soft Blue */
+  background-color: rgba(66, 153, 225, 0.25);
+  color: #2b6cb0;
+}
+
+.adhd-v {
+  /* Verbs - Soft Red */
+  background-color: rgba(245, 101, 101, 0.25);
+  color: #c53030;
+}
+
+.adhd-a, .adhd-adj {
+  /* Adjectives - Soft Green */
+  background-color: rgba(72, 187, 120, 0.25);
+  color: #2f855a;
+}
+
+.adhd-adv {
+  /* Adverbs - Soft Purple */
+  background-color: rgba(159, 122, 234, 0.25);
+  color: #6b46c1;
+}
+
+.adhd-comp {
+  /* Comparatives - Orange */
+  background-color: rgba(237, 137, 54, 0.25);
+  color: #c05621;
+}
+
+/* Ensure styles survive some reset css */
+span[class^="adhd-"] {
+  display: inline;
+  padding: 0;
+  margin: 0;
+  border-radius: 2px;
+}
