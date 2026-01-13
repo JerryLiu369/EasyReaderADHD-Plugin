@@ -4,8 +4,6 @@
   "version": "1.0.0",
   "description": "为 ADHD 和阅读困难用户设计的智能文本高亮阅读辅助工具",
   "permissions": [
-    "activeTab",
-    "scripting",
     "storage"
   ],
   "host_permissions": [
