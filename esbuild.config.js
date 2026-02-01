@@ -2,7 +2,7 @@ import esbuild from "esbuild";
 import fs from "fs";
 import path from "path";
 
-const outDir = ".";
+const outDir = "dist";
 
 const options = {
   entryPoints: {
@@ -24,8 +24,8 @@ async function build() {
     await esbuild.build(options);
     console.log("✅ 构建完成！");
     console.log("📦 输出文件:");
-    console.log("   - content.js");
-    console.log("   - background.js");
+    console.log("   - dist/content.js");
+    console.log("   - dist/background.js");
   } catch (error) {
     console.error("❌ 构建失败:", error);
     process.exit(1);

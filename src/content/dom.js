@@ -2,15 +2,11 @@
  * DOM 处理和观察模块
  */
 
-import {
-  IGNORED_TAGS,
-  DEFAULT_APPEARANCE,
-  DEFAULT_COLORS,
-  DEFAULT_DICTIONARIES,
-} from "../shared/constants.js";
+import { IGNORED_TAGS } from "../shared/constants.js";
 import { logger } from "../shared/logger.js";
 import { detectLanguage } from "../shared/language.js";
 import { segmentCJKText, segmentSpaceBasedText } from "./segmentation.js";
+import { loadDictionaries, getWordSet } from "./dictionary.js";
 
 export function getEnabledDicts(settings) {
   if (!settings?.dictionaries) return [];
@@ -29,12 +25,17 @@ export async function processTextNode(textNode, settings) {
   const language = detectLanguage(text);
   const html =
     language === "zh" || language === "ja"
-      ? await segmentCJKText(text, dictIds)
-      : await segmentSpaceBasedText(text, dictIds);
+      ? await segmentCJKText(text, dictIds, settings)
+      : await segmentSpaceBasedText(text, dictIds, settings);
 
   if (!html.includes('class="adhd-')) return false;
 
   try {
+    // 防御性检查：确保节点仍在文档树中（动态页面很常见，静默跳过）
+    if (!textNode.parentNode) {
+      return false;
+    }
+
     const wrapper = document.createElement("span");
     wrapper.innerHTML = html;
     wrapper.className = "adhd-processed";
@@ -69,6 +70,117 @@ export function collectAllTextNodes() {
   return nodes;
 }
 
+// 批量处理节点 - 直接同步处理，快速完成
+async function processBatch(tasks, processor) {
+  let processed = 0;
+
+  // 直接并发处理所有任务，不做过度分片
+  const results = await Promise.all(tasks.map((task) => processor(task)));
+  processed = results.filter(Boolean).length;
+
+  return processed;
+}
+
+export async function processPage(settings) {
+  if (!settings?.enabled) {
+    logger.info("跳过处理: 已禁用");
+    return;
+  }
+
+  logger.info("开始处理页面...");
+
+  try {
+    // 1. 预加载所有启用的词典和词集（关键优化！）
+    const dictIds = getEnabledDicts(settings);
+    if (dictIds.length === 0) {
+      logger.info("没有启用的词典");
+      return;
+    }
+
+    logger.info(`预加载词典: ${dictIds.join(", ")}`);
+    await Promise.all([loadDictionaries(dictIds), getWordSet(dictIds)]);
+    logger.info("词典预加载完成");
+
+    // 2. 快速收集所有节点 (同步操作，通常很快)
+    const textNodes = collectAllTextNodes();
+    logger.info(`找到 ${textNodes.length} 个文本节点`);
+
+    // 3. 串行处理节点（词典已缓存，每个节点处理很快）
+    const count = await processBatch(textNodes, (node) =>
+      processTextNode(node, settings),
+    );
+
+    logger.info(`页面处理完成: ${count} 个节点已高亮`);
+  } catch (error) {
+    logger.error("页面处理失败:", error);
+  }
+}
+
+export function removeHighlights() {
+  const processed = document.querySelectorAll(".adhd-processed");
+  processed.forEach((el) => {
+    try {
+      if (!el.parentNode) return; // 防御性检查
+      const text = el.textContent;
+      el.parentNode.replaceChild(document.createTextNode(text), el);
+    } catch (e) {}
+  });
+  logger.info("已清除所有高亮");
+}
+
+// 高性能 DOM 观察者
+export function setupDOMObserver(settings, callback) {
+  let timeout = null;
+  const queue = new Set(); // 使用 Set 去重
+
+  const observer = new MutationObserver((mutations) => {
+    if (!settings?.enabled) return;
+
+    let hasNewNodes = false;
+    for (const mutation of mutations) {
+      if (mutation.type === "childList") {
+        for (const node of mutation.addedNodes) {
+          if (
+            node.nodeType === Node.ELEMENT_NODE &&
+            !node.hasAttribute("data-adhd-processed")
+          ) {
+            queue.add(node);
+            hasNewNodes = true;
+          }
+        }
+      }
+    }
+
+    if (hasNewNodes && !timeout) {
+      // 防抖：500ms 后处理一批，避免频繁触发
+      timeout = setTimeout(() => {
+        const nodes = Array.from(queue);
+        queue.clear();
+        timeout = null;
+        if (nodes.length > 0) {
+          callback(nodes);
+        }
+      }, 500);
+    }
+  });
+
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+  });
+
+  logger.observer("启动高性能 DOM 监听");
+
+  return {
+    disconnect: () => {
+      observer.disconnect();
+      if (timeout) clearTimeout(timeout);
+      queue.clear();
+      logger.observer("停止监听");
+    },
+  };
+}
+
 export function collectTextNodesInContainer(container) {
   const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
     acceptNode: (node) => {
@@ -87,138 +199,7 @@ export function collectTextNodesInContainer(container) {
   return nodes;
 }
 
-export async function waitForStablePage(maxWait = 15000, checkInterval = 500) {
-  return new Promise((resolve) => {
-    let lastLength = document.body.innerHTML.length;
-    let stableTime = 0;
-    const startTime = Date.now();
-
-    const check = () => {
-      const currentLength = document.body.innerHTML.length;
-      if (currentLength === lastLength) {
-        stableTime += checkInterval;
-      } else {
-        stableTime = 0;
-        lastLength = currentLength;
-      }
-
-      if (stableTime >= 1000 || Date.now() - startTime >= maxWait) {
-        resolve(true);
-      } else {
-        setTimeout(check, checkInterval);
-      }
-    };
-
-    setTimeout(check, checkInterval);
-  });
-}
-
-export async function processPage(settings) {
-  if (!settings?.enabled) {
-    logger.info("跳过处理: 已禁用");
-    return;
-  }
-
-  logger.info("开始处理页面...");
-
-  try {
-    const textNodes = collectAllTextNodes();
-    logger.info(`找到 ${textNodes.length} 个文本节点`);
-
-    let processedCount = 0;
-    for (const textNode of textNodes) {
-      if (await processTextNode(textNode, settings)) {
-        processedCount++;
-      }
-    }
-
-    logger.info(`页面处理完成: ${processedCount} 个节点已高亮`);
-  } catch (error) {
-    logger.error("页面处理失败:", error);
-  }
-}
-
-export function removeHighlights() {
-  const processed = document.querySelectorAll(".adhd-processed");
-  processed.forEach((el) => {
-    try {
-      const text = el.textContent;
-      el.parentNode.replaceChild(document.createTextNode(text), el);
-    } catch (e) {}
-  });
-  logger.info("已清除所有高亮");
-}
-
-export function setupDOMObserver(settings, onNodesAdded) {
-  let observer = null;
-  let pendingNodes = [];
-  let pendingNodesSet = new WeakSet();
-  let processingTimeout = null;
-  let observerSuspended = false;
-
-  function handleMutations(mutations) {
-    if (!settings?.enabled || observerSuspended) return;
-
-    for (const mutation of mutations) {
-      for (const node of mutation.addedNodes) {
-        if (node.nodeType !== Node.ELEMENT_NODE) continue;
-        if (node.closest?.(".adhd-processed")) continue;
-        if (pendingNodesSet.has(node)) continue;
-
-        let shouldAdd = true;
-        for (let i = pendingNodes.length - 1; i >= 0; i--) {
-          const existing = pendingNodes[i];
-          if (!existing?.isConnected) {
-            pendingNodesSet.delete(existing);
-            pendingNodes.splice(i, 1);
-            continue;
-          }
-          if (node.contains(existing)) {
-            pendingNodesSet.delete(existing);
-            pendingNodes.splice(i, 1);
-            continue;
-          }
-          if (existing.contains(node)) {
-            shouldAdd = false;
-            break;
-          }
-        }
-        if (!shouldAdd) continue;
-
-        pendingNodesSet.add(node);
-        pendingNodes.push(node);
-      }
-    }
-
-    if (pendingNodes.length > 0 && !processingTimeout) {
-      processingTimeout = setTimeout(() => {
-        if (onNodesAdded) {
-          onNodesAdded([...pendingNodes]);
-        }
-        pendingNodes = [];
-        pendingNodesSet = new WeakSet();
-        processingTimeout = null;
-      }, 200);
-    }
-  }
-
-  observer = new MutationObserver(handleMutations);
-  observer.observe(document.body, { childList: true, subtree: true });
-
-  logger.info("DOM观察器已启动");
-
-  return {
-    stop() {
-      if (observer) {
-        observer.disconnect();
-        observer = null;
-      }
-      pendingNodes = [];
-      pendingNodesSet = new WeakSet();
-      if (processingTimeout) {
-        clearTimeout(processingTimeout);
-        processingTimeout = null;
-      }
-    },
-  };
+export async function processNodeList(nodes, settings) {
+  if (!nodes || nodes.length === 0) return 0;
+  return await processBatch(nodes, (node) => processTextNode(node, settings));
 }

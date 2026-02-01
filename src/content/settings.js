@@ -10,7 +10,9 @@ const STORAGE_KEY = "adhdSettings";
 export async function loadSettings() {
   try {
     const stored = await chrome.storage.sync.get(STORAGE_KEY);
-    return stored[STORAGE_KEY] || { ...DEFAULT_SETTINGS };
+    return ensureSettingsStructure(
+      stored[STORAGE_KEY] || { ...DEFAULT_SETTINGS },
+    );
   } catch (error) {
     logger.error("加载设置失败:", error);
     return { ...DEFAULT_SETTINGS };
@@ -76,6 +78,10 @@ export function ensureSettingsStructure(settings) {
   }
   if (!ensured.appearance)
     ensured.appearance = { ...DEFAULT_SETTINGS.appearance };
+  if (typeof ensured.appearance.highlightDensity !== "number") {
+    ensured.appearance.highlightDensity =
+      DEFAULT_SETTINGS.appearance.highlightDensity;
+  }
   if (!ensured.appearance.colors)
     ensured.appearance.colors = { ...DEFAULT_SETTINGS.appearance.colors };
   if (!ensured.dictionaries)

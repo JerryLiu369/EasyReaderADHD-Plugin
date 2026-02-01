@@ -10,15 +10,15 @@
     "<all_urls>"
   ],
   "icons": {
-    "128": "static/icon-128.png"
+    "128": "src/static/icon-128.png"
   },
   "action": {
-    "default_popup": "popup.html",
+    "default_popup": "src/popup/popup.html",
     "default_title": "EasyReaderADHD Settings",
-    "default_icon": "static/icon-128.png"
+    "default_icon": "src/static/icon-128.png"
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "dist/background.js"
   },
   "content_scripts": [
     {
@@ -26,10 +26,10 @@
         "<all_urls>"
       ],
       "js": [
-        "content.js"
+        "dist/content.js"
       ],
       "css": [
-        "styles.css"
+        "src/styles.css"
       ],
       "run_at": "document_idle"
     }
@@ -37,7 +37,8 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "dictionaries/*.json"
+        "src/dictionaries/*.json",
+        "src/dictionaries/ZH/*.json"
       ],
       "matches": [
         "<all_urls>"

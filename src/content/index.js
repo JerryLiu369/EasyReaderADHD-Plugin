@@ -2,54 +2,67 @@
  * Content Script 入口点
  */
 
-import {
-  loadSettings,
-  saveSettings,
-  mergeSettings,
-  onSettingsChange,
-} from "./settings.js";
+import { loadSettings, mergeSettings, onSettingsChange } from "./settings.js";
 import { applyStyles, removeStyles } from "./styles.js";
 import {
   processPage,
   removeHighlights,
   setupDOMObserver,
   collectTextNodesInContainer,
+  processNodeList,
 } from "./dom.js";
-import { processTextNode, waitForStablePage } from "./dom.js";
 import { logger } from "../shared/logger.js";
 
 let currentSettings = null;
 let domObserver = null;
+
+// 证明模块已执行：打印版本与 URL，设置全局标识，便于调试
+try {
+  const _manifest = chrome.runtime.getManifest();
+  const _version =
+    _manifest && _manifest.version ? _manifest.version : "unknown";
+  logger.info(
+    `🚀 EasyReaderADHD content script loaded — v${_version} — ${location.href}`,
+  );
+  // 供开发者在控制台交互确认
+  globalThis.__EasyReaderADHD = globalThis.__EasyReaderADHD || {};
+  globalThis.__EasyReaderADHD.version = _version;
+  globalThis.__EasyReaderADHD.startedAt = Date.now();
+} catch (e) {
+  // 仅记录到控制台，不中断执行
+  logger.warn("无法读取扩展清单信息:", e);
+}
 
 async function initialize() {
   logger.info("初始化 EasyReaderADHD 插件...");
 
   try {
     currentSettings = await loadSettings();
+    logger.info("加载的设置:", currentSettings);
 
-    if (!currentSettings.enabled) {
+    if (!currentSettings?.enabled) {
       logger.info("插件已禁用");
       return;
     }
 
     applyStyles(currentSettings);
-
-    await waitForStablePage();
-
     await processPage(currentSettings);
 
-    domObserver = setupDOMObserver(currentSettings, async (addedNodes) => {
-      for (const node of addedNodes) {
-        const textNodes = collectTextNodesInContainer(node);
-        for (const textNode of textNodes) {
-          try {
-            await processTextNode(textNode, currentSettings);
-          } catch (error) {
-            logger.error("处理新节点失败:", error);
-          }
+    // 启动高性能观察者
+    if (currentSettings.enabled) {
+      domObserver = setupDOMObserver(currentSettings, async (addedElements) => {
+        const allTextNodes = [];
+        for (const el of addedElements) {
+          const nodes = collectTextNodesInContainer(el);
+          nodes.forEach((n) => allTextNodes.push(n));
         }
-      }
-    });
+
+        if (allTextNodes.length > 0) {
+          logger.observer(`动态内容: 处理 ${allTextNodes.length} 个文本节点`);
+          await processNodeList(allTextNodes, currentSettings);
+        }
+      });
+    }
 
     logger.info("插件初始化完成");
   } catch (error) {
@@ -60,6 +73,10 @@ async function initialize() {
 function handleMessage(request, sender, sendResponse) {
   logger.debug("接收消息:", request.action);
 
+  if (!currentSettings) {
+    currentSettings = { enabled: true, appearance: {}, dictionaries: {} };
+  }
+
   if (request.action === "enable") {
     currentSettings.enabled = true;
     applyStyles(currentSettings);
@@ -69,7 +86,10 @@ function handleMessage(request, sender, sendResponse) {
     currentSettings.enabled = false;
     removeHighlights();
     removeStyles();
-    if (domObserver?.stop) domObserver.stop();
+    if (domObserver) {
+      domObserver.disconnect();
+      domObserver = null;
+    }
     sendResponse({ success: true, message: "已禁用" });
   } else if (request.action === "updateSettings") {
     currentSettings = mergeSettings(currentSettings, request.settings);
@@ -77,9 +97,29 @@ function handleMessage(request, sender, sendResponse) {
     if (currentSettings.enabled) {
       removeHighlights();
       processPage(currentSettings);
+      // 确保观察者已启动
+      if (!domObserver) {
+        domObserver = setupDOMObserver(
+          currentSettings,
+          async (addedElements) => {
+            const allTextNodes = [];
+            for (const el of addedElements) {
+              const nodes = collectTextNodesInContainer(el);
+              nodes.forEach((n) => allTextNodes.push(n));
+            }
+            if (allTextNodes.length > 0) {
+              await processNodeList(allTextNodes, currentSettings);
+            }
+          },
+        );
+      }
     } else {
       removeHighlights();
       removeStyles();
+      if (domObserver) {
+        domObserver.disconnect();
+        domObserver = null;
+      }
     }
     sendResponse({ success: true, message: "设置已更新" });
   } else if (request.action === "reprocess") {
@@ -95,9 +135,11 @@ function handleMessage(request, sender, sendResponse) {
 
 chrome.runtime.onMessage.addListener(handleMessage);
 
+// 监听 storage changes，当 popup 写入 chrome.storage.sync 时会触发此回调
 onSettingsChange((newSettings) => {
+  logger.info("onSettingsChange: 接收到设置变更:", newSettings);
   currentSettings = newSettings;
-  if (currentSettings.enabled) {
+  if (currentSettings?.enabled) {
     applyStyles(currentSettings);
     removeHighlights();
     processPage(currentSettings).catch((error) => {
@@ -106,7 +148,6 @@ onSettingsChange((newSettings) => {
   } else {
     removeHighlights();
     removeStyles();
-    if (domObserver?.stop) domObserver.stop();
   }
 });
 

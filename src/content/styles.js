@@ -6,6 +6,23 @@ import { DEFAULT_COLORS, DEFAULT_APPEARANCE } from "../shared/constants.js";
 import { darkenColor } from "../shared/colors.js";
 import { logger } from "../shared/logger.js";
 
+// Hex to RGBA 转换
+function hexToRgba(hex, alpha) {
+  let r = 0,
+    g = 0,
+    b = 0;
+  if (hex.length === 4) {
+    r = parseInt(hex[1] + hex[1], 16);
+    g = parseInt(hex[2] + hex[2], 16);
+    b = parseInt(hex[3] + hex[3], 16);
+  } else if (hex.length === 7) {
+    r = parseInt(hex.substring(1, 3), 16);
+    g = parseInt(hex.substring(3, 5), 16);
+    b = parseInt(hex.substring(5, 7), 16);
+  }
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 let styleElement = null;
 
 export function applyStyles(settings) {
@@ -17,35 +34,33 @@ export function applyStyles(settings) {
   const app = settings.appearance || DEFAULT_APPEARANCE;
   const colors = app.colors || DEFAULT_COLORS;
 
+  // 字重转换为 text-stroke (原版实现)
+  const strokeWidth =
+    (app.weight || 400) > 400 ? (((app.weight || 400) - 400) / 500) * 0.5 : 0;
+  const weightStyle =
+    strokeWidth > 0
+      ? `-webkit-text-stroke: ${strokeWidth}px currentColor;`
+      : "";
+  const scaleStyle =
+    (app.scale || 100) > 100 ? `font-size: ${(app.scale || 100) / 100}em;` : "";
+
   const css = `
-.adhd-noun { color: ${colors.noun}; font-weight: ${(app.weight || 400) + 100}; }
-.adhd-verb { color: ${colors.verb}; font-weight: ${(app.weight || 400) + 100}; }
-.adhd-adj { color: ${colors.adj}; font-weight: ${(app.weight || 400) + 100}; }
-.adhd-other { color: ${colors.other}; font-weight: ${(app.weight || 400) + 100}; }
-
-.adhd-noun, .adhd-verb, .adhd-adj, .adhd-other {
-  ${app.underline ? "text-decoration: underline;" : ""}
-  transition: all 0.15s ease;
-  cursor: default;
+.adhd-processed span {
+  display: inline;
+  border-radius: 3px;
+  transition: background-color 0.2s;
+  color: inherit !important;
+  ${scaleStyle}
+  ${weightStyle}
+  ${(app.spacing || 0) > 0 ? `padding: 0 ${app.spacing}px; margin: 0 ${app.spacing / 2}px;` : ""}
+  ${app.underline ? "border-bottom: 2px solid currentColor;" : ""}
 }
 
-.adhd-noun:hover, .adhd-verb:hover, .adhd-adj:hover, .adhd-other:hover {
-  background-color: rgba(0, 0, 0, 0.05);
-  border-radius: 2px;
-}
-
-.adhd-processed {
-  font-size: ${app.scale || 100}%;
-  letter-spacing: ${app.spacing || 0}px;
-  line-height: 1.6;
-}
-
-@media (prefers-color-scheme: dark) {
-  .adhd-noun { text-shadow: 0 0 1px ${darkenColor(colors.noun, 30)}; }
-  .adhd-verb { text-shadow: 0 0 1px ${darkenColor(colors.verb, 30)}; }
-  .adhd-adj { text-shadow: 0 0 1px ${darkenColor(colors.adj, 30)}; }
-  .adhd-other { text-shadow: 0 0 1px ${darkenColor(colors.other, 30)}; }
-}
+.adhd-n { background-color: ${hexToRgba(colors.noun, 0.25)}; }
+.adhd-v { background-color: ${hexToRgba(colors.verb, 0.25)}; }
+.adhd-a, .adhd-adj { background-color: ${hexToRgba(colors.adj, 0.25)}; }
+.adhd-adv { background-color: ${hexToRgba(colors.adj, 0.25)}; }
+.adhd-other { background-color: ${hexToRgba(colors.other, 0.25)}; }
 `;
 
   if (!styleElement) {

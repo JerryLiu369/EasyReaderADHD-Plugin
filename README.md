@@ -1,205 +1,75 @@
-# EasyReaderADHD - 阅读辅助浏览器扩展
+# EasyReaderADHD Plugin
 
-![Icon](static/icon-128.png)
+> 为 ADHD 和阅读困难用户设计的轻量级 Chrome 阅读辅助扩展。
 
-> 为 ADHD 和阅读困难用户设计的智能文本高亮阅读辅助工具
+通过智能词性高亮与可调节的高亮密度，帮助用户在阅读长文时保持专注，减少视觉疲劳。
 
-[English](#english) | [中文](#中文)
+## ✨ 核心特性
 
----
+- **智能分词高亮**：基于本地词典自动识别名词、动词、形容词并区分颜色。
+- **高亮密度控制**：支持 **0-100% 随机密度调节**，避免满屏色彩造成的视觉过载。
+- **个性化阅读流**：支持调节字间距、字体大小、粗细及多种配色主题（柔和、高对比等）。
+- **完全离线隐私**：所有计算在本地完成，无需网络请求，零数据收集。
 
-## 中文
+## 🚀 安装与使用
 
-### 🎯 功能特性
+### 安装方法
 
-**EasyReaderADHD** 是一款强大的浏览器扩展，帮助 ADHD 患者、阅读困难者和语言学习者改善阅读体验。
+1. **获取代码**：克隆或下载本仓库。
+2. **加载扩展**：
+   - 在 Chrome 地址栏输入 `chrome://extensions/` 进入扩展管理页。
+   - 开启右上角的 **"开发者模式" (Developer mode)**。
+   - 点击 **"加载已解压的扩展程序" (Load unpacked)**。
+   - 选择本项目的**根目录**文件夹。
 
-#### 核心功能
-- 🎨 **语法着色系统** - 自动为不同词性（名词、动词、形容词）着色，提升理解效率
-- 🌍 **多语言支持** - 英语、中文、日语、法语、西班牙语、俄语
-- 🎭 **丰富的配色方案** - 5 种预设主题（默认、柔和、森林、粉红、高对比）+ 自定义选项
-- ⚙️ **精细化调控**
-  - 字体大小调整（50%-200%）
-  - 字间距控制
-  - 字体粗细调整
-  - 可选下划线
-- 📚 **多字典支持** - 基础字典 + 专业词库（成语、诗词、IT、财经、法律、医学等）
-- ✅ **基于词典的词性高亮**
+### 功能配置
+点击浏览器工具栏的插件图标即可弹出设置面板：
+- **密度滑块**：拖动滑块调整页面上高亮词汇的百分比。
+- **词性开关**：独立控制是否高亮名词、动词或形容词。
+- **外观定制**：快速切换预设颜色主题或手动调整排版参数。
 
-### 💡 适用于
-- ADHD 患者的阅读专注力提升
-- 阅读困难者的视觉辅助
-- 语言学习者的理解加速
-- 任何人的无障碍阅读体验
+## 🛠️ 开发指南
 
-### 🚀 快速开始
+本项目使用 Manifest V3 标准开发，利用 `esbuild` 进行模块化构建。
 
-1. 在 Chrome 应用商店安装扩展
-2. 点击扩展图标打开设置
-3. 选择你的偏好语言和配色方案
-4. 开始阅读！扩展会自动高亮文本
+### 1. 环境准备
+确保本地已安装 Node.js 和 npm。
 
-### ⚙️ 自定义选项
-
-#### 外观设置
-- **主题选择** - 预设主题或完全自定义颜色
-- **颜色定制** - 为不同词性选择独特颜色
-- **排版控制** - 调整字体大小、间距和粗细
-
-#### 字典设置
-- **语言选择** - 启用/禁用任何语言
-- **词性过滤** - 选择要高亮的词性
-- **专业词库** - 可选的专业领域词汇库
-
-#### 处理模式
-- **字典模式** - 快速、轻量、隐私保护
-
-
-### 🔐 隐私保护
-
-- ✅ 所有设置仅保存在浏览器本地
-- ✅ 不收集、跟踪或上传任何数据
-- ✅ 无广告、无分析、无第三方跟踪
-- ✅ [查看完整隐私政策](PRIVACY.md)
-
-### 📦 项目结构
-
-```
-EasyReaderADHD-Plugin/
-├── manifest.json           # 扩展配置
-├── popup.html              # 设置界面
-├── popup.js                # 设置逻辑
-├── content.js              # 内容脚本
-├── background.js           # 后台服务
-├── styles.css              # 样式表
-├── dictionaries/           # 词典数据
-│   ├── EN_word.json        # 英语词典
-│   ├── ZH_word.json        # 中文词典
-│   ├── JA_word.json        # 日语词典
-│   └── ZH/                 # 中文专业词库
-└── static/
-    └── icon-128.png        # 扩展图标
-```
-
-### 🛠️ 开发
-
-#### 依赖项
-- Chrome 浏览器 (Manifest V3)
-- 无额外依赖
-
-#### 本地安装
-
-1. 克隆仓库
+### 2. 初始化与构建
+首次开发前需安装依赖：
 ```bash
-git clone https://github.com/JerryLiu369/EasyReaderADHD-Plugin.git
+npm install
 ```
 
-2. 在 Chrome 中打开 `chrome://extensions/`
+**构建命令**：
 
-3. 启用"开发者模式"
+| 命令 | 说明 |
+|------|------|
+| `npm run build` | 执行单次生产环境构建，输出至 `dist/` 目录 |
+| `npm run watch` | 开启监听模式，源代码修改后自动重新构建 |
 
-4. 点击"加载未打包的扩展程序"，选择项目文件夹
+### 3. 项目结构
+核心逻辑位于 `src/`，构建产物位于 `dist/`。
 
-#### 修改和测试
+```text
+Project Root
+├── dist/               # 构建输出目录 (content.js, background.js)
+├── src/
+│   ├── background/     # Service Worker 逻辑
+│   ├── content/        # 页面注入脚本 (分词算法、DOM 操作)
+│   ├── popup/          # 设置面板 (HTML/JS)
+│   ├── dictionaries/   # 本地词典 (JSON 格式)
+│   ├── static/         # 静态资源 (图标等)
+│   └── styles.css      # 注入页面的核心样式
+├── esbuild.config.js   # 构建配置文件
+└── manifest.json       # Chrome 扩展清单文件
+```
 
-编辑 `popup.js`、`content.js` 或 `styles.css` 后，在 Chrome 的扩展管理页面点击刷新按钮。
+### 4. 调试建议
+- 修改 `src/` 下的代码后，需运行构建命令。
+- 构建完成后，去扩展管理页点击 **刷新图标** 重新加载插件。
+- 推荐使用 `npm run watch`，配合 Chrome 的 extension reloader 插件可实现热更新体验。
 
-### 🎓 词典数据
-
-词典数据包含词性标签和特定领域词汇：
-- 基础：名词、动词、形容词、其他词性
-- 中文专业：成语、诗词、IT、财经、法律、医学、汽车、食物、动物、地名、历史人物
-
-### 📝 许可证
+## 📄 License
 
 [MIT License](LICENSE)
-
-### 📧 联系方式
-
-有问题或建议？请联系：**953639086@qq.com**
-
----
-
-## English
-
-### 🎯 Features
-
-**EasyReaderADHD** is a powerful browser extension designed to help users with ADHD, dyslexia, and other reading challenges improve their reading experience.
-
-#### Key Features
-- 🎨 **Syntax-based text coloring** - Automatically color-code different parts of speech for better comprehension
-- 🌍 **Multi-language support** - English, Chinese, Japanese, French, Spanish, Russian
-- 🎭 **Customizable color themes** - 5 pre-designed themes + full customization
-- ⚙️ **Fine-tuned controls**
-  - Font size adjustment (50%-200%)
-  - Letter spacing control
-  - Font weight adjustment
-  - Optional underline for highlighted words
-- 📚 **Multiple dictionaries** - Basic dictionaries + specialized Chinese vocabularies (idioms, poetry, IT, finance, law, medicine, etc.)
-- ✅ **Dictionary-based POS highlighting**
-
-### 💡 Perfect for
-- ADHD users struggling with reading focus
-- Dyslexic readers needing visual aids
-- Language learners improving comprehension
-- Anyone wanting a more accessible reading experience
-
-### 🚀 Quick Start
-
-1. Install the extension from Chrome Web Store
-2. Click the extension icon to open settings
-3. Choose your preferred language and color scheme
-4. Start reading! Text will be automatically highlighted
-
-### 🔐 Privacy
-
-- ✅ All settings stored locally in your browser
-- ✅ No data collection, tracking, or transmission
-- ✅ No ads, analytics, or third-party tracking
-- ✅ [Full Privacy Policy](PRIVACY.md)
-
-### 📦 Project Structure
-
-```
-EasyReaderADHD-Plugin/
-├── manifest.json           # Extension configuration
-├── popup.html              # Settings UI
-├── popup.js                # Settings logic
-├── content.js              # Content script
-├── background.js           # Background service
-├── styles.css              # Styles
-├── dictionaries/           # Dictionary data
-└── static/
-    └── icon-128.png        # Extension icon
-```
-
-### 🛠️ Development
-
-#### Requirements
-- Chrome browser (Manifest V3)
-- No additional dependencies
-
-#### Local Installation
-
-1. Clone the repository
-```bash
-git clone https://github.com/JerryLiu369/EasyReaderADHD-Plugin.git
-```
-
-2. Open `chrome://extensions/` in Chrome
-
-3. Enable "Developer mode"
-
-4. Click "Load unpacked extension" and select the project folder
-
-### 📝 License
-
-[MIT License](LICENSE)
-
-### 📧 Contact
-
-Questions or suggestions? Email: **953639086@qq.com**
-
----
-
-**Made with ❤️ for accessible reading**

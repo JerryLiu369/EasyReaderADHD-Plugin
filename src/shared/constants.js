@@ -3,23 +3,23 @@
  */
 
 export const DICT_FILES = {
-  en: "dictionaries/EN_word.json",
-  zh: "dictionaries/ZH_word.json",
-  ja: "dictionaries/JA_word.json",
-  fr: "dictionaries/FR_word.json",
-  es: "dictionaries/ES_word.json",
-  ru: "dictionaries/RU_word.json",
-  zh_chengyu: "dictionaries/ZH/ZH_word_chengyu.json",
-  zh_poem: "dictionaries/ZH/ZH_word_poem.json",
-  zh_it: "dictionaries/ZH/ZH_word_it.json",
-  zh_caijing: "dictionaries/ZH/ZH_word_caijing.json",
-  zh_law: "dictionaries/ZH/ZH_word_law.json",
-  zh_medical: "dictionaries/ZH/ZH_word_medical.json",
-  zh_car: "dictionaries/ZH/ZH_word_car.json",
-  zh_food: "dictionaries/ZH/ZH_word_food.json",
-  zh_animal: "dictionaries/ZH/ZH_word_animal.json",
-  zh_diming: "dictionaries/ZH/ZH_word_diming.json",
-  zh_lishimingren: "dictionaries/ZH/ZH_word_lishimingren.json",
+  en: "src/dictionaries/EN_word.json",
+  zh: "src/dictionaries/ZH_word.json",
+  ja: "src/dictionaries/JA_word.json",
+  fr: "src/dictionaries/FR_word.json",
+  es: "src/dictionaries/ES_word.json",
+  ru: "src/dictionaries/RU_word.json",
+  zh_chengyu: "src/dictionaries/ZH/ZH_word_chengyu.json",
+  zh_poem: "src/dictionaries/ZH/ZH_word_poem.json",
+  zh_it: "src/dictionaries/ZH/ZH_word_it.json",
+  zh_caijing: "src/dictionaries/ZH/ZH_word_caijing.json",
+  zh_law: "src/dictionaries/ZH/ZH_word_law.json",
+  zh_medical: "src/dictionaries/ZH/ZH_word_medical.json",
+  zh_car: "src/dictionaries/ZH/ZH_word_car.json",
+  zh_food: "src/dictionaries/ZH/ZH_word_food.json",
+  zh_animal: "src/dictionaries/ZH/ZH_word_animal.json",
+  zh_diming: "src/dictionaries/ZH/ZH_word_diming.json",
+  zh_lishimingren: "src/dictionaries/ZH/ZH_word_lishimingren.json",
 };
 
 export const IGNORED_TAGS = [
@@ -41,6 +41,7 @@ export const DEFAULT_COLORS = {
 
 export const DEFAULT_APPEARANCE = {
   colors: { ...DEFAULT_COLORS },
+  highlightDensity: 50,
   scale: 100,
   weight: 400,
   spacing: 0,

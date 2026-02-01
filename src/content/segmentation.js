@@ -2,7 +2,59 @@
  * 文本分词模块
  */
 
-import { lookupWord, normalizePos, loadDictionaries } from "./dictionary.js";
+import {
+  lookupWord,
+  normalizePos,
+  loadDictionaries,
+  getWordSet,
+} from "./dictionary.js";
+
+function getDictConfig(dictId, settings) {
+  if (!settings?.dictionaries) return null;
+  if (settings.dictionaries[dictId]) return settings.dictionaries[dictId];
+
+  if (dictId && dictId.includes("_")) {
+    const baseId = dictId.split("_")[0];
+    if (settings.dictionaries[baseId]) return settings.dictionaries[baseId];
+  }
+
+  return null;
+}
+
+// 检查是否应该高亮某个词性
+function shouldHighlightPos(dictId, normalizedPos, settings) {
+  const dictConfig = getDictConfig(dictId, settings);
+  const defaultHighlight =
+    normalizedPos === "n" || normalizedPos === "v" || normalizedPos === "a";
+
+  if (!dictConfig || !dictConfig.pos) {
+    return defaultHighlight;
+  }
+
+  const posMap = {
+    n: "noun",
+    v: "verb",
+    a: "adj",
+    adv: "adj",
+    other: "other",
+  };
+
+  const posKey = posMap[normalizedPos] || "other";
+  return dictConfig.pos[posKey] === true;
+}
+
+function getHighlightDensity(settings) {
+  const raw = settings?.appearance?.highlightDensity;
+  const value = typeof raw === "number" ? raw : 50;
+  return Math.min(100, Math.max(0, value));
+}
+
+function shouldHighlightByDensity(settings) {
+  const density = getHighlightDensity(settings);
+  if (density >= 100) return true;
+  if (density <= 0) return false;
+  return Math.random() < density / 100;
+}
 
 function forwardMaxMatch(text, wordSet) {
   const result = [];
@@ -27,14 +79,12 @@ function forwardMaxMatch(text, wordSet) {
   return result;
 }
 
-export async function segmentCJKText(text, dictIds) {
+export async function segmentCJKText(text, dictIds, settings) {
+  // 使用缓存的词集，避免每次都遍历词典
+  const allWords = await getWordSet(dictIds);
   const dictMap = await loadDictionaries(dictIds);
-  if (dictMap.size === 0) return text;
 
-  const allWords = new Set();
-  dictMap.forEach((dictData) => {
-    Object.keys(dictData).forEach((word) => allWords.add(word));
-  });
+  if (allWords.size === 0) return text;
 
   const tokens = forwardMaxMatch(text, allWords);
   let html = "";
@@ -61,7 +111,17 @@ export async function segmentCJKText(text, dictIds) {
 
     if (result) {
       const normalized = normalizePos(result.pos);
-      html += `<span class="adhd-${normalized}">${token}</span>`;
+
+      // 检查是否应该高亮这个词性 + 密度控制
+      if (
+        shouldHighlightPos(result.dictId, normalized, settings) &&
+        normalized !== "other" &&
+        shouldHighlightByDensity(settings)
+      ) {
+        html += `<span class="adhd-${normalized}">${token}</span>`;
+      } else {
+        html += token;
+      }
     } else {
       html += token;
     }
@@ -70,7 +130,7 @@ export async function segmentCJKText(text, dictIds) {
   return html;
 }
 
-export async function segmentSpaceBasedText(text, dictIds) {
+export async function segmentSpaceBasedText(text, dictIds, settings) {
   const dictMap = await loadDictionaries(dictIds);
   if (dictMap.size === 0) return text;
 
@@ -108,7 +168,17 @@ export async function segmentSpaceBasedText(text, dictIds) {
 
     if (result) {
       const normalized = normalizePos(result.pos);
-      html += `<span class="adhd-${normalized}">${word}</span>`;
+
+      // 检查是否应该高亮这个词性 + 密度控制
+      if (
+        shouldHighlightPos(result.dictId, normalized, settings) &&
+        normalized !== "other" &&
+        shouldHighlightByDensity(settings)
+      ) {
+        html += `<span class="adhd-${normalized}">${word}</span>`;
+      } else {
+        html += word;
+      }
     } else {
       html += word;
     }
