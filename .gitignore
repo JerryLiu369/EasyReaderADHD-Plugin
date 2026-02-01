@@ -22,5 +22,8 @@ npm-debug.log*
 # Build
 build/
 
+# Artifacts
+artifacts/*.zip
+
 # Test
 tests/

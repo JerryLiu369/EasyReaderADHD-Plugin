@@ -4,11 +4,12 @@
     "description": "ADHD-friendly reading extension with dictionary-based word highlighting",
     "type": "module",
     "scripts": {
-        "build": "node esbuild.config.js",
+        "build": "node esbuild.config.js && node scripts/package-zip.js",
         "watch": "node esbuild.config.js --watch",
         "dev": "npm run watch"
     },
     "devDependencies": {
+        "archiver": "^6.0.2",
         "esbuild": "^0.20.0"
     },
     "author": "Jerry Liu",
