@@ -24,7 +24,7 @@
   - 字体粗细调整
   - 可选下划线
 - 📚 **多字典支持** - 基础字典 + 专业词库（成语、诗词、IT、财经、法律、医学等）
-- 🤖 **两种处理模式** - 字典匹配或 LLM 智能分析
+- ✅ **基于词典的词性高亮**
 
 ### 💡 适用于
 - ADHD 患者的阅读专注力提升
@@ -53,7 +53,7 @@
 
 #### 处理模式
 - **字典模式** - 快速、轻量、隐私保护
-- **LLM 模式**（可选）- 更精准的语义分析
+
 
 ### 🔐 隐私保护
 
@@ -136,7 +136,7 @@ git clone https://github.com/JerryLiu369/EasyReaderADHD-Plugin.git
   - Font weight adjustment
   - Optional underline for highlighted words
 - 📚 **Multiple dictionaries** - Basic dictionaries + specialized Chinese vocabularies (idioms, poetry, IT, finance, law, medicine, etc.)
-- 🤖 **Two processing modes** - Dictionary-based or LLM-powered analysis
+- ✅ **Dictionary-based POS highlighting**
 
 ### 💡 Perfect for
 - ADHD users struggling with reading focus

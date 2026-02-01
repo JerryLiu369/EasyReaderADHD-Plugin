@@ -288,19 +288,15 @@
       accent-color: #4299e1;
     }
 
-    /* LLM Settings */
-    .llm-control {
       margin-bottom: 12px;
     }
 
-    .llm-label {
       display: block;
       margin-bottom: 4px;
       color: #4a5568;
       font-size: 12px;
     }
 
-    .llm-input {
       width: 100%;
       padding: 8px 10px;
       border: 1px solid #e2e8f0;
@@ -309,12 +305,10 @@
       transition: border-color 0.2s;
     }
 
-    .llm-input:focus {
       outline: none;
       border-color: #4299e1;
     }
 
-    .llm-hint {
       font-size: 11px;
       color: #718096;
       background: #f7fafc;
@@ -337,7 +331,6 @@
 
   <div class="tabs">
     <div class="tab-btn active" data-tab="dictionaries">词典</div>
-    <div class="tab-btn" data-tab="llm">大模型</div>
     <div class="tab-btn" data-tab="appearance">外观</div>
   </div>
 
@@ -361,7 +354,6 @@
             <span>📖 词典模式</span>
           </label>
           <label class="mode-option">
-            <input type="radio" name="processingMode" value="llm">
             <span>🤖 大模型模式</span>
           </label>
         </div>
@@ -379,35 +371,21 @@
       </div>
     </div>
 
-    <!-- Tab 2: LLM Settings -->
-    <div id="llm" class="tab-pane">
-      <div class="section" id="llm-settings-section">
         <div class="section-title">大模型设置</div>
 
-        <div class="llm-control">
-          <label class="llm-label">API 接入点</label>
-          <input type="text" id="llmEndpoint" class="llm-input"
             placeholder="https://api.openai.com/v1/chat/completions">
         </div>
 
-        <div class="llm-control">
-          <label class="llm-label">API Key</label>
-          <input type="password" id="llmApiKey" class="llm-input" placeholder="sk-...">
         </div>
 
-        <div class="llm-control">
-          <label class="llm-label">模型名称</label>
-          <input type="text" id="llmModel" class="llm-input" placeholder="gpt-3.5-turbo">
         </div>
 
-        <div class="llm-hint">
           💡 支持 OpenAI 兼容接口（如 OpenAI、DeepSeek、通义千问等）
         </div>
       </div>
 
       <div class="section">
         <div class="section-title">说明</div>
-        <div class="llm-hint">
           • 大模型模式会智能标记重点词汇<br>
           • 按段落分批处理，边处理边显示<br>
           • 仅标记最重要的名词、动词、形容词<br>

@@ -128,11 +128,6 @@ let currentState = {
   dictionaries: {},
   appearance: { ...DEFAULT_STYLE },
   // 新增：处理模式设置
-  processingMode: "dictionary", // "dictionary" 或 "llm"
-  llmSettings: {
-    endpoint: "",
-    apiKey: "",
-    model: "gpt-3.5-turbo",
   },
 };
 
@@ -182,12 +177,6 @@ function loadSettings() {
       currentState.dictionaries = { ...DEFAULT_DICTS, ...SPECIAL_DICTS };
     }
 
-    // 确保 llmSettings 存在
-    if (!currentState.llmSettings) {
-      currentState.llmSettings = {
-        endpoint: "",
-        apiKey: "",
-        model: "gpt-3.5-turbo",
       };
     }
 
@@ -197,7 +186,6 @@ function loadSettings() {
 
     renderDicts();
     renderAppearance();
-    renderLLMSettings();
     setupListeners();
   });
 }
@@ -389,84 +377,17 @@ function save() {
   });
 }
 
-// 渲染LLM设置
-function renderLLMSettings() {
   // 处理模式选择
   const modeRadios = document.querySelectorAll('input[name="processingMode"]');
   modeRadios.forEach((radio) => {
     radio.checked = radio.value === currentState.processingMode;
   });
 
-  // LLM设置值
-  const endpointInput = document.getElementById("llmEndpoint");
-  const apiKeyInput = document.getElementById("llmApiKey");
-  const modelInput = document.getElementById("llmModel");
 
-  if (endpointInput)
-    endpointInput.value = currentState.llmSettings.endpoint || "";
-  if (apiKeyInput) apiKeyInput.value = currentState.llmSettings.apiKey || "";
-  if (modelInput)
-    modelInput.value = currentState.llmSettings.model || "gpt-3.5-turbo";
 
-  // 根据模式显示/隐藏设置区域
-  updateModeUI();
 }
 
-function updateModeUI() {
-  const dictSection = document.getElementById("dict-settings-section");
-  const llmSection = document.getElementById("llm-settings-section");
-
-  if (currentState.processingMode === "dictionary") {
-    if (dictSection) dictSection.style.display = "block";
-    if (llmSection) llmSection.style.opacity = "0.5";
-  } else {
-    if (dictSection) dictSection.style.opacity = "0.5";
-    if (llmSection) llmSection.style.opacity = "1";
-  }
-}
-
-// 在 setupListeners 中添加LLM相关监听
-function setupLLMListeners() {
-  // 处理模式切换
-  const modeRadios = document.querySelectorAll('input[name="processingMode"]');
-  modeRadios.forEach((radio) => {
-    radio.addEventListener("change", (e) => {
-      currentState.processingMode = e.target.value;
-      updateModeUI();
-      save();
-    });
-  });
-
-  // LLM设置输入
-  const endpointInput = document.getElementById("llmEndpoint");
-  const apiKeyInput = document.getElementById("llmApiKey");
-  const modelInput = document.getElementById("llmModel");
-
-  if (endpointInput) {
-    endpointInput.addEventListener("input", (e) => {
-      currentState.llmSettings.endpoint = e.target.value;
-      save();
-    });
-  }
-
-  if (apiKeyInput) {
-    apiKeyInput.addEventListener("input", (e) => {
-      currentState.llmSettings.apiKey = e.target.value;
-      save();
-    });
-  }
-
-  if (modelInput) {
-    modelInput.addEventListener("input", (e) => {
-      currentState.llmSettings.model = e.target.value;
-      save();
-    });
-  }
-}
-
-// 修改原来的setupListeners，在末尾调用setupLLMListeners
 const originalSetupListeners = setupListeners;
 setupListeners = function () {
   originalSetupListeners();
-  setupLLMListeners();
 };

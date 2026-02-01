@@ -36,15 +36,6 @@ When you enable EasyReaderADHD:
 
 **No data leaves your browser.**
 
-## Optional LLM Integration
-
-If you choose to configure an LLM (Large Language Model) API:
-- You must explicitly provide the API endpoint and authentication key
-- Text data is sent only to your configured service (e.g., OpenAI, Aliyun)
-- We do not control, monitor, or store this data
-- **You are responsible for reviewing that service's privacy policy**
-
-This is entirely optional and disabled by default.
 
 ## Permissions Explanation
 
@@ -58,7 +49,7 @@ Used solely to save your preferences locally in your browser.
 
 The extension includes:
 - **Dictionary data**: Pre-loaded, never transmitted
-- **Optional LLM APIs**: Only if you explicitly configure them
+
 
 We do not partner with any analytics, advertising, or tracking services.
 

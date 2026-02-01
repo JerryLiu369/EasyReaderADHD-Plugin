@@ -4,26 +4,22 @@
 
 .adhd-n {
   /* Nouns - Soft Blue */
-  background-color: rgba(66, 153, 225, 0.25);
-  color: #2b6cb0;
+  background-color: rgba(66, 153, 225, 0.25) !important;
 }
 
 .adhd-v {
   /* Verbs - Soft Red */
-  background-color: rgba(245, 101, 101, 0.25);
-  color: #c53030;
+  background-color: rgba(245, 101, 101, 0.25) !important;
 }
 
 .adhd-a, .adhd-adj {
   /* Adjectives - Soft Green */
-  background-color: rgba(72, 187, 120, 0.25);
-  color: #2f855a;
+  background-color: rgba(72, 187, 120, 0.25) !important;
 }
 
 .adhd-adv {
   /* Adverbs - Soft Purple */
-  background-color: rgba(159, 122, 234, 0.25);
-  color: #6b46c1;
+  background-color: rgba(159, 122, 234, 0.25) !important;
 }
 
 .adhd-comp {
