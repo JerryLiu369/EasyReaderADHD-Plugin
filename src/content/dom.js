@@ -23,12 +23,16 @@ export async function processTextNode(textNode, settings) {
   if (dictIds.length === 0) return false;
 
   const language = detectLanguage(text);
-  const html =
+  const segments =
     language === "zh" || language === "ja"
       ? await segmentCJKText(text, dictIds, settings)
       : await segmentSpaceBasedText(text, dictIds, settings);
 
-  if (!html.includes('class="adhd-')) return false;
+  const hasHighlight = Array.isArray(segments)
+    ? segments.some((segment) => segment?.className)
+    : false;
+
+  if (!hasHighlight) return false;
 
   try {
     // 防御性检查：确保节点仍在文档树中（动态页面很常见，静默跳过）
@@ -37,9 +41,24 @@ export async function processTextNode(textNode, settings) {
     }
 
     const wrapper = document.createElement("span");
-    wrapper.innerHTML = html;
     wrapper.className = "adhd-processed";
     wrapper.setAttribute("data-adhd-processed", "1");
+
+    const fragment = document.createDocumentFragment();
+    segments.forEach((segment) => {
+      if (!segment || segment.text === undefined || segment.text === null)
+        return;
+      if (segment.className) {
+        const span = document.createElement("span");
+        span.className = segment.className;
+        span.textContent = segment.text;
+        fragment.appendChild(span);
+      } else {
+        fragment.appendChild(document.createTextNode(segment.text));
+      }
+    });
+
+    wrapper.appendChild(fragment);
     textNode.parentNode.replaceChild(wrapper, textNode);
     return true;
   } catch (error) {
@@ -70,13 +89,44 @@ export function collectAllTextNodes() {
   return nodes;
 }
 
-// 批量处理节点 - 直接同步处理，快速完成
-async function processBatch(tasks, processor) {
-  let processed = 0;
+function waitForIdle(timeout = 1000) {
+  return new Promise((resolve) => {
+    if (typeof requestIdleCallback === "function") {
+      requestIdleCallback((deadline) => resolve(deadline), { timeout });
+    } else {
+      setTimeout(
+        () =>
+          resolve({
+            timeRemaining: () => 0,
+            didTimeout: true,
+          }),
+        0,
+      );
+    }
+  });
+}
 
-  // 直接并发处理所有任务，不做过度分片
-  const results = await Promise.all(tasks.map((task) => processor(task)));
-  processed = results.filter(Boolean).length;
+// 批量处理节点 - 大页面分片+空闲调度，降低卡顿
+async function processBatch(tasks, processor, options = {}) {
+  let processed = 0;
+  if (!tasks || tasks.length === 0) return processed;
+
+  const batchSize = options.batchSize || 200;
+  const idleTimeout = options.idleTimeout || 1000;
+
+  if (tasks.length <= batchSize) {
+    const results = await Promise.all(tasks.map((task) => processor(task)));
+    return results.filter(Boolean).length;
+  }
+
+  let index = 0;
+  while (index < tasks.length) {
+    await waitForIdle(idleTimeout);
+    const slice = tasks.slice(index, index + batchSize);
+    index += batchSize;
+    const results = await Promise.all(slice.map((task) => processor(task)));
+    processed += results.filter(Boolean).length;
+  }
 
   return processed;
 }
@@ -106,8 +156,10 @@ export async function processPage(settings) {
     logger.info(`找到 ${textNodes.length} 个文本节点`);
 
     // 3. 串行处理节点（词典已缓存，每个节点处理很快）
-    const count = await processBatch(textNodes, (node) =>
-      processTextNode(node, settings),
+    const count = await processBatch(
+      textNodes,
+      (node) => processTextNode(node, settings),
+      { batchSize: 200, idleTimeout: 1000 },
     );
 
     logger.info(`页面处理完成: ${count} 个节点已高亮`);
@@ -201,5 +253,8 @@ export function collectTextNodesInContainer(container) {
 
 export async function processNodeList(nodes, settings) {
   if (!nodes || nodes.length === 0) return 0;
-  return await processBatch(nodes, (node) => processTextNode(node, settings));
+  return await processBatch(nodes, (node) => processTextNode(node, settings), {
+    batchSize: 200,
+    idleTimeout: 1000,
+  });
 }

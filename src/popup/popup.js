@@ -1,6 +1,13 @@
 // EasyReaderADHD Popup Script
 // 严格遵守 CSP：无内联脚本，所有逻辑在此文件中
 
+import {
+  DEFAULT_SETTINGS,
+  DEFAULT_APPEARANCE,
+  DEFAULT_DICTIONARIES,
+  DEFAULT_COLORS,
+} from "../shared/constants.js";
+
 // 1. 全局错误捕获 (必须最先执行)
 window.addEventListener("unhandledrejection", (event) => {
   try {
@@ -21,12 +28,7 @@ window.addEventListener("unhandledrejection", (event) => {
 
 // 2. 常量定义
 const PRESETS = {
-  default: {
-    noun: "#4299e1",
-    verb: "#f56565",
-    adj: "#48bb78",
-    other: "#805ad5",
-  },
+  default: { ...DEFAULT_COLORS },
   soft: { noun: "#90cdf4", verb: "#feb2b2", adj: "#9ae6b4", other: "#d6bcfa" },
   forest: {
     noun: "#2c7a7b",
@@ -43,35 +45,17 @@ const PRESETS = {
   },
 };
 
-const DEFAULT_APPEARANCE = {
-  theme: "default",
-  colors: { ...PRESETS.default },
-  highlightDensity: 50,
-  scale: 100,
-  weight: 400,
-  spacing: 0,
-  underline: false,
-};
+function cloneAppearance() {
+  return {
+    ...DEFAULT_APPEARANCE,
+    theme: DEFAULT_APPEARANCE.theme || "default",
+    colors: { ...DEFAULT_APPEARANCE.colors },
+  };
+}
 
-const DEFAULT_DICTIONARIES = {
-  en: { enabled: true, name: "🇬🇧 英语" },
-  zh: { enabled: true, name: "🇨🇳 中文" },
-  ja: { enabled: false, name: "🇯🇵 日语" },
-  fr: { enabled: false, name: "🇫🇷 法语" },
-  es: { enabled: false, name: "🇪🇸 西班牙语" },
-  ru: { enabled: false, name: "🇷🇺 俄语" },
-  zh_chengyu: { enabled: false, name: "📚 成语" },
-  zh_poem: { enabled: false, name: "🎭 诗词" },
-  zh_it: { enabled: false, name: "💻 IT技术" },
-  zh_caijing: { enabled: false, name: "💰 财经" },
-  zh_law: { enabled: false, name: "⚖️ 法律" },
-  zh_medical: { enabled: false, name: "🏥 医学" },
-  zh_car: { enabled: false, name: "🚗 汽车" },
-  zh_food: { enabled: false, name: "🍜 食物" },
-  zh_animal: { enabled: false, name: "🐾 动物" },
-  zh_diming: { enabled: false, name: "🗺️ 地名" },
-  zh_lishimingren: { enabled: false, name: "👤 历史人物" },
-};
+function cloneDictionaries() {
+  return JSON.parse(JSON.stringify(DEFAULT_DICTIONARIES));
+}
 
 const SPECIAL_KEYS = [
   "zh_chengyu",
@@ -89,9 +73,9 @@ const SPECIAL_KEYS = [
 
 // 3. 状态管理
 let currentState = {
-  enabled: true,
-  dictionaries: { ...DEFAULT_DICTIONARIES },
-  appearance: { ...DEFAULT_APPEARANCE },
+  enabled: DEFAULT_SETTINGS.enabled ?? true,
+  dictionaries: cloneDictionaries(),
+  appearance: cloneAppearance(),
 };
 
 // 4. 初始化
@@ -128,16 +112,22 @@ function loadSettings() {
   chrome.storage.sync.get(["adhdSettings"], (result) => {
     if (result.adhdSettings) {
       const remote = result.adhdSettings;
+      const defaultAppearance = cloneAppearance();
+      const defaultDictionaries = cloneDictionaries();
       // 深度合并设置，防止字段丢失
       currentState = {
         ...currentState,
         ...remote,
         appearance: {
-          ...DEFAULT_APPEARANCE,
+          ...defaultAppearance,
           ...(remote.appearance || {}),
+          colors: {
+            ...defaultAppearance.colors,
+            ...(remote.appearance?.colors || {}),
+          },
         },
         dictionaries: {
-          ...DEFAULT_DICTIONARIES,
+          ...defaultDictionaries,
           ...(remote.dictionaries || {}),
         },
       };

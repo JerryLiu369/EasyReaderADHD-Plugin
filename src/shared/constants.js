@@ -36,10 +36,11 @@ export const DEFAULT_COLORS = {
   noun: "#4299e1",
   verb: "#f56565",
   adj: "#48bb78",
-  other: "#805ad6",
+  other: "#805ad5",
 };
 
 export const DEFAULT_APPEARANCE = {
+  theme: "default",
   colors: { ...DEFAULT_COLORS },
   highlightDensity: 50,
   scale: 100,
@@ -49,8 +50,23 @@ export const DEFAULT_APPEARANCE = {
 };
 
 export const DEFAULT_DICTIONARIES = {
-  zh: { enabled: true, pos: { noun: true, verb: true, adj: true } },
-  en: { enabled: true, pos: { noun: true, verb: true, adj: true } },
+  en: { enabled: true, name: "🇬🇧 英语" },
+  zh: { enabled: true, name: "🇨🇳 中文" },
+  ja: { enabled: false, name: "🇯🇵 日语" },
+  fr: { enabled: false, name: "🇫🇷 法语" },
+  es: { enabled: false, name: "🇪🇸 西班牙语" },
+  ru: { enabled: false, name: "🇷🇺 俄语" },
+  zh_chengyu: { enabled: false, name: "📚 成语" },
+  zh_poem: { enabled: false, name: "🎭 诗词" },
+  zh_it: { enabled: false, name: "💻 IT技术" },
+  zh_caijing: { enabled: false, name: "💰 财经" },
+  zh_law: { enabled: false, name: "⚖️ 法律" },
+  zh_medical: { enabled: false, name: "🏥 医学" },
+  zh_car: { enabled: false, name: "🚗 汽车" },
+  zh_food: { enabled: false, name: "🍜 食物" },
+  zh_animal: { enabled: false, name: "🐾 动物" },
+  zh_diming: { enabled: false, name: "🗺️ 地名" },
+  zh_lishimingren: { enabled: false, name: "👤 历史人物" },
 };
 
 export const DEFAULT_SETTINGS = {

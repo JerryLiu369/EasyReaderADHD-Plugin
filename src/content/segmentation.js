@@ -84,21 +84,21 @@ export async function segmentCJKText(text, dictIds, settings) {
   const allWords = await getWordSet(dictIds);
   const dictMap = await loadDictionaries(dictIds);
 
-  if (allWords.size === 0) return text;
+  if (allWords.size === 0) return [{ text }];
 
   const tokens = forwardMaxMatch(text, allWords);
-  let html = "";
+  const segments = [];
 
   for (const token of tokens) {
     if (!token || token.length === 0) {
-      html += token;
+      segments.push({ text: token });
       continue;
     }
 
     // 不要 trim()，保留原始空格！
     const testToken = token.trim();
     if (!testToken) {
-      html += token; // 纯空格保留
+      segments.push({ text: token }); // 纯空格保留
       continue;
     }
 
@@ -118,34 +118,34 @@ export async function segmentCJKText(text, dictIds, settings) {
         normalized !== "other" &&
         shouldHighlightByDensity(settings)
       ) {
-        html += `<span class="adhd-${normalized}">${token}</span>`;
+        segments.push({ text: token, className: `adhd-${normalized}` });
       } else {
-        html += token;
+        segments.push({ text: token });
       }
     } else {
-      html += token;
+      segments.push({ text: token });
     }
   }
 
-  return html;
+  return segments;
 }
 
 export async function segmentSpaceBasedText(text, dictIds, settings) {
   const dictMap = await loadDictionaries(dictIds);
-  if (dictMap.size === 0) return text;
+  if (dictMap.size === 0) return [{ text }];
 
   const words = text.split(/(\s+)/);
-  let html = "";
+  const segments = [];
 
   for (const word of words) {
     if (/^\s+$/.test(word)) {
-      html += word;
+      segments.push({ text: word });
       continue;
     }
 
     const cleanWord = word.replace(/[^\w\-\']/g, "");
     if (!cleanWord) {
-      html += word;
+      segments.push({ text: word });
       continue;
     }
 
@@ -175,14 +175,14 @@ export async function segmentSpaceBasedText(text, dictIds, settings) {
         normalized !== "other" &&
         shouldHighlightByDensity(settings)
       ) {
-        html += `<span class="adhd-${normalized}">${word}</span>`;
+        segments.push({ text: word, className: `adhd-${normalized}` });
       } else {
-        html += word;
+        segments.push({ text: word });
       }
     } else {
-      html += word;
+      segments.push({ text: word });
     }
   }
 
-  return html;
+  return segments;
 }
