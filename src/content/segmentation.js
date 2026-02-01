@@ -102,6 +102,12 @@ export async function segmentCJKText(text, dictIds, settings) {
       continue;
     }
 
+    // 忽略单字词，避免噪声高亮
+    if (testToken.length === 1) {
+      segments.push({ text: token });
+      continue;
+    }
+
     let result = null;
     dictMap.forEach((dictData, dictId) => {
       if (!result && dictData[testToken]) {
@@ -145,6 +151,12 @@ export async function segmentSpaceBasedText(text, dictIds, settings) {
 
     const cleanWord = word.replace(/[^\w\-\']/g, "");
     if (!cleanWord) {
+      segments.push({ text: word });
+      continue;
+    }
+
+    // 忽略单字词，避免噪声高亮
+    if (cleanWord.length === 1) {
       segments.push({ text: word });
       continue;
     }
