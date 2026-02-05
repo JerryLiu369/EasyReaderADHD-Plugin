@@ -267,7 +267,9 @@ export function removeHighlights() {
       if (!el.parentNode) return; // 防御性检查
       const text = el.textContent;
       el.parentNode.replaceChild(document.createTextNode(text), el);
-    } catch (e) {}
+    } catch (e) {
+      logger.warn("清除高亮失败:", e);
+    }
   });
   logger.info("已清除所有高亮");
 }
