@@ -8,6 +8,103 @@ import { detectLanguage } from "../shared/language.js";
 import { segmentCJKText, segmentSpaceBasedText } from "./segmentation.js";
 import { loadDictionaries, getWordSet } from "./dictionary.js";
 
+const STABLE_TEXT_DELAY = 800;
+const pendingTextNodes = new Set();
+let lastChangeMap = new WeakMap();
+let stableTimer = null;
+let latestSettings = null;
+
+function shouldSkipTextNode(node) {
+  const parent = node?.parentElement;
+  if (!parent) return true;
+  if (
+    typeof parent.closest === "function" &&
+    parent.closest(".adhd-processed")
+  ) {
+    return true;
+  }
+  const tag = parent.tagName.toLowerCase();
+  if (IGNORED_TAGS.includes(tag)) return true;
+  if (!node.textContent || !node.textContent.trim()) return true;
+  return false;
+}
+
+function clearPendingProcessing() {
+  pendingTextNodes.clear();
+  if (stableTimer) {
+    clearTimeout(stableTimer);
+    stableTimer = null;
+  }
+  lastChangeMap = new WeakMap();
+}
+
+export function updateProcessingSettings(settings) {
+  latestSettings = settings;
+  if (!settings?.enabled) {
+    clearPendingProcessing();
+  }
+}
+
+export function enqueueTextNodesForProcessing(nodes, settings) {
+  latestSettings = settings;
+  if (!settings?.enabled) {
+    clearPendingProcessing();
+    return 0;
+  }
+  if (!nodes || nodes.length === 0) return 0;
+
+  const now = Date.now();
+  let queued = 0;
+
+  for (const node of nodes) {
+    if (!node || node.nodeType !== Node.TEXT_NODE) continue;
+    if (shouldSkipTextNode(node)) continue;
+    lastChangeMap.set(node, now);
+    pendingTextNodes.add(node);
+    queued++;
+  }
+
+  if (queued > 0) {
+    scheduleStableProcessing();
+  }
+  return queued;
+}
+
+function scheduleStableProcessing() {
+  if (stableTimer) return;
+  stableTimer = setTimeout(async () => {
+    stableTimer = null;
+
+    if (!latestSettings?.enabled) {
+      clearPendingProcessing();
+      return;
+    }
+
+    const now = Date.now();
+    const ready = [];
+
+    for (const node of Array.from(pendingTextNodes)) {
+      if (!node.isConnected) {
+        pendingTextNodes.delete(node);
+        continue;
+      }
+      const last = lastChangeMap.get(node) || 0;
+      if (now - last >= STABLE_TEXT_DELAY) {
+        pendingTextNodes.delete(node);
+        ready.push(node);
+      }
+    }
+
+    if (ready.length > 0) {
+      await processNodeList(ready, latestSettings);
+    }
+
+    if (pendingTextNodes.size > 0) {
+      scheduleStableProcessing();
+    }
+  }, STABLE_TEXT_DELAY);
+}
+
 export function getEnabledDicts(settings) {
   if (!settings?.dictionaries) return [];
   return Object.entries(settings.dictionaries)
@@ -16,6 +113,7 @@ export function getEnabledDicts(settings) {
 }
 
 export async function processTextNode(textNode, settings) {
+  if (shouldSkipTextNode(textNode)) return false;
   const text = textNode.textContent;
   if (!text.trim()) return false;
 
@@ -73,12 +171,9 @@ export function collectAllTextNodes() {
     NodeFilter.SHOW_TEXT,
     {
       acceptNode: (node) => {
-        const parent = node.parentElement;
-        if (!parent) return NodeFilter.FILTER_REJECT;
-        const tag = parent.tagName.toLowerCase();
-        if (IGNORED_TAGS.includes(tag)) return NodeFilter.FILTER_REJECT;
-        if (!node.textContent.trim()) return NodeFilter.FILTER_REJECT;
-        return NodeFilter.FILTER_ACCEPT;
+        return shouldSkipTextNode(node)
+          ? NodeFilter.FILTER_REJECT
+          : NodeFilter.FILTER_ACCEPT;
       },
     },
   );
@@ -137,6 +232,8 @@ export async function processPage(settings) {
     return;
   }
 
+  updateProcessingSettings(settings);
+
   logger.info("开始处理页面...");
 
   try {
@@ -155,14 +252,9 @@ export async function processPage(settings) {
     const textNodes = collectAllTextNodes();
     logger.info(`找到 ${textNodes.length} 个文本节点`);
 
-    // 3. 串行处理节点（词典已缓存，每个节点处理很快）
-    const count = await processBatch(
-      textNodes,
-      (node) => processTextNode(node, settings),
-      { batchSize: 200, idleTimeout: 1000 },
-    );
-
-    logger.info(`页面处理完成: ${count} 个节点已高亮`);
+    // 3. 将节点加入稳定队列（避免流式输出被提前替换）
+    const queued = enqueueTextNodesForProcessing(textNodes, settings);
+    logger.info(`页面文本已加入处理队列: ${queued} 个节点`);
   } catch (error) {
     logger.error("页面处理失败:", error);
   }
@@ -183,7 +275,8 @@ export function removeHighlights() {
 // 高性能 DOM 观察者
 export function setupDOMObserver(settings, callback) {
   let timeout = null;
-  const queue = new Set(); // 使用 Set 去重
+  const elementQueue = new Set();
+  const textQueue = new Set();
 
   const observer = new MutationObserver((mutations) => {
     if (!settings?.enabled) return;
@@ -196,9 +289,18 @@ export function setupDOMObserver(settings, callback) {
             node.nodeType === Node.ELEMENT_NODE &&
             !node.hasAttribute("data-adhd-processed")
           ) {
-            queue.add(node);
+            elementQueue.add(node);
+            hasNewNodes = true;
+          } else if (node.nodeType === Node.TEXT_NODE) {
+            textQueue.add(node);
             hasNewNodes = true;
           }
+        }
+      } else if (mutation.type === "characterData") {
+        const target = mutation.target;
+        if (target && target.nodeType === Node.TEXT_NODE) {
+          textQueue.add(target);
+          hasNewNodes = true;
         }
       }
     }
@@ -206,11 +308,21 @@ export function setupDOMObserver(settings, callback) {
     if (hasNewNodes && !timeout) {
       // 防抖：500ms 后处理一批，避免频繁触发
       timeout = setTimeout(() => {
-        const nodes = Array.from(queue);
-        queue.clear();
+        const elements = Array.from(elementQueue);
+        const directTextNodes = Array.from(textQueue);
+        elementQueue.clear();
+        textQueue.clear();
         timeout = null;
-        if (nodes.length > 0) {
-          callback(nodes);
+
+        const allTextNodes = [];
+        for (const el of elements) {
+          const nodes = collectTextNodesInContainer(el);
+          nodes.forEach((n) => allTextNodes.push(n));
+        }
+        directTextNodes.forEach((n) => allTextNodes.push(n));
+
+        if (allTextNodes.length > 0 && typeof callback === "function") {
+          callback(allTextNodes);
         }
       }, 500);
     }
@@ -219,6 +331,7 @@ export function setupDOMObserver(settings, callback) {
   observer.observe(document.body, {
     childList: true,
     subtree: true,
+    characterData: true,
   });
 
   logger.observer("启动高性能 DOM 监听");
@@ -227,7 +340,8 @@ export function setupDOMObserver(settings, callback) {
     disconnect: () => {
       observer.disconnect();
       if (timeout) clearTimeout(timeout);
-      queue.clear();
+      elementQueue.clear();
+      textQueue.clear();
       logger.observer("停止监听");
     },
   };
@@ -236,12 +350,9 @@ export function setupDOMObserver(settings, callback) {
 export function collectTextNodesInContainer(container) {
   const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
     acceptNode: (node) => {
-      const parent = node.parentElement;
-      if (!parent) return NodeFilter.FILTER_REJECT;
-      const tag = parent.tagName.toLowerCase();
-      if (IGNORED_TAGS.includes(tag)) return NodeFilter.FILTER_REJECT;
-      if (!node.textContent.trim()) return NodeFilter.FILTER_REJECT;
-      return NodeFilter.FILTER_ACCEPT;
+      return shouldSkipTextNode(node)
+        ? NodeFilter.FILTER_REJECT
+        : NodeFilter.FILTER_ACCEPT;
     },
   });
 

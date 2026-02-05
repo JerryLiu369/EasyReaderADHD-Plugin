@@ -8,8 +8,8 @@ import {
   processPage,
   removeHighlights,
   setupDOMObserver,
-  collectTextNodesInContainer,
-  processNodeList,
+  enqueueTextNodesForProcessing,
+  updateProcessingSettings,
 } from "./dom.js";
 import { logger } from "../shared/logger.js";
 
@@ -39,6 +39,7 @@ async function initialize() {
   try {
     currentSettings = await loadSettings();
     logger.info("加载的设置:", currentSettings);
+    updateProcessingSettings(currentSettings);
 
     if (!currentSettings?.enabled) {
       logger.info("插件已禁用");
@@ -50,16 +51,10 @@ async function initialize() {
 
     // 启动高性能观察者
     if (currentSettings.enabled) {
-      domObserver = setupDOMObserver(currentSettings, async (addedElements) => {
-        const allTextNodes = [];
-        for (const el of addedElements) {
-          const nodes = collectTextNodesInContainer(el);
-          nodes.forEach((n) => allTextNodes.push(n));
-        }
-
-        if (allTextNodes.length > 0) {
-          logger.observer(`动态内容: 处理 ${allTextNodes.length} 个文本节点`);
-          await processNodeList(allTextNodes, currentSettings);
+      domObserver = setupDOMObserver(currentSettings, async (textNodes) => {
+        if (textNodes.length > 0) {
+          logger.observer(`动态内容: 处理 ${textNodes.length} 个文本节点`);
+          enqueueTextNodesForProcessing(textNodes, currentSettings);
         }
       });
     }
@@ -79,11 +74,13 @@ function handleMessage(request, sender, sendResponse) {
 
   if (request.action === "enable") {
     currentSettings.enabled = true;
+    updateProcessingSettings(currentSettings);
     applyStyles(currentSettings);
     processPage(currentSettings);
     sendResponse({ success: true, message: "已启用" });
   } else if (request.action === "disable") {
     currentSettings.enabled = false;
+    updateProcessingSettings(currentSettings);
     removeHighlights();
     removeStyles();
     if (domObserver) {
@@ -93,25 +90,18 @@ function handleMessage(request, sender, sendResponse) {
     sendResponse({ success: true, message: "已禁用" });
   } else if (request.action === "updateSettings") {
     currentSettings = mergeSettings(currentSettings, request.settings);
+    updateProcessingSettings(currentSettings);
     applyStyles(currentSettings);
     if (currentSettings.enabled) {
       removeHighlights();
       processPage(currentSettings);
       // 确保观察者已启动
       if (!domObserver) {
-        domObserver = setupDOMObserver(
-          currentSettings,
-          async (addedElements) => {
-            const allTextNodes = [];
-            for (const el of addedElements) {
-              const nodes = collectTextNodesInContainer(el);
-              nodes.forEach((n) => allTextNodes.push(n));
-            }
-            if (allTextNodes.length > 0) {
-              await processNodeList(allTextNodes, currentSettings);
-            }
-          },
-        );
+        domObserver = setupDOMObserver(currentSettings, async (textNodes) => {
+          if (textNodes.length > 0) {
+            enqueueTextNodesForProcessing(textNodes, currentSettings);
+          }
+        });
       }
     } else {
       removeHighlights();
@@ -124,6 +114,7 @@ function handleMessage(request, sender, sendResponse) {
     sendResponse({ success: true, message: "设置已更新" });
   } else if (request.action === "reprocess") {
     if (currentSettings.enabled) {
+      updateProcessingSettings(currentSettings);
       removeHighlights();
       processPage(currentSettings);
       sendResponse({ success: true, message: "已重新处理" });
@@ -139,6 +130,7 @@ chrome.runtime.onMessage.addListener(handleMessage);
 onSettingsChange((newSettings) => {
   logger.info("onSettingsChange: 接收到设置变更:", newSettings);
   currentSettings = newSettings;
+  updateProcessingSettings(currentSettings);
   if (currentSettings?.enabled) {
     applyStyles(currentSettings);
     removeHighlights();
