@@ -64,7 +64,7 @@ function forwardMaxMatch(text, wordSet) {
   let i = 0;
   while (i < text.length) {
     let matchLen = 0;
-    for (let len = Math.min(8, text.length - i); len > 0; len--) {
+    for (let len = Math.min(8, text.length - i); len > 1; len--) {
       const word = text.slice(i, i + len);
       if (wordSet.has(word)) {
         matchLen = len;
@@ -123,11 +123,6 @@ export async function segmentCJKText(text, dictIds, settings) {
       continue;
     }
 
-    // 忽略单字词，避免噪声高亮
-    if (testToken.length === 1) {
-      segments.push({ text: token });
-      continue;
-    }
 
     let result = null;
     for (const [dictId, dictData] of dictMap) {
