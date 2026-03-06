@@ -34,11 +34,3 @@ export const logger = {
   },
 };
 
-/**
- * 保留此函数签名以兼容 index.js 中的 setLogEnabled 调用，
- * 但在新的 process.env.NODE_ENV 方案下为空操作——
- * 日志级别由编译期常量决定，不需要运行时切换。
- */
-export function setLogEnabled(_value) {
-  // no-op: controlled by build-time process.env.NODE_ENV
-}

@@ -82,10 +82,28 @@ function forwardMaxMatch(text, wordSet) {
   return result;
 }
 
+// 词性判断 + 密度控制后推入 segment，两处分词函数共用
+function pushSegment(segments, displayText, result, settings) {
+  if (result) {
+    const normalized = normalizePos(result.pos);
+    if (
+      shouldHighlightPos(result.dictId, normalized, settings) &&
+      normalized !== "other" &&
+      shouldHighlightByDensity(settings)
+    ) {
+      segments.push({ text: displayText, className: `adhd-${normalized}` });
+      return;
+    }
+  }
+  segments.push({ text: displayText });
+}
+
 export async function segmentCJKText(text, dictIds, settings) {
-  // 使用缓存的词集，避免每次都遍历词典
-  const allWords = await getWordSet(dictIds);
-  const dictMap = await loadDictionaries(dictIds);
+  // 并行加载词集和词典（均有缓存，首次调用可节省等待时间）
+  const [allWords, dictMap] = await Promise.all([
+    getWordSet(dictIds),
+    loadDictionaries(dictIds),
+  ]);
 
   if (allWords.size === 0) return [{ text }];
 
@@ -119,22 +137,7 @@ export async function segmentCJKText(text, dictIds, settings) {
       }
     }
 
-    if (result) {
-      const normalized = normalizePos(result.pos);
-
-      // 检查是否应该高亮这个词性 + 密度控制
-      if (
-        shouldHighlightPos(result.dictId, normalized, settings) &&
-        normalized !== "other" &&
-        shouldHighlightByDensity(settings)
-      ) {
-        segments.push({ text: token, className: `adhd-${normalized}` });
-      } else {
-        segments.push({ text: token });
-      }
-    } else {
-      segments.push({ text: token });
-    }
+    pushSegment(segments, token, result, settings);
   }
 
   return segments;
@@ -182,22 +185,7 @@ export async function segmentSpaceBasedText(text, dictIds, settings) {
       result = await lookupWord(cleanWord.slice(0, -3), dictIds);
     }
 
-    if (result) {
-      const normalized = normalizePos(result.pos);
-
-      // 检查是否应该高亮这个词性 + 密度控制
-      if (
-        shouldHighlightPos(result.dictId, normalized, settings) &&
-        normalized !== "other" &&
-        shouldHighlightByDensity(settings)
-      ) {
-        segments.push({ text: word, className: `adhd-${normalized}` });
-      } else {
-        segments.push({ text: word });
-      }
-    } else {
-      segments.push({ text: word });
-    }
+    pushSegment(segments, word, result, settings);
   }
 
   return segments;

@@ -11,7 +11,7 @@ import {
   enqueueTextNodesForProcessing,
   updateProcessingSettings,
 } from "./dom.js";
-import { logger, setLogEnabled } from "../shared/logger.js";
+import { logger } from "../shared/logger.js";
 
 let currentSettings = null;
 let domObserver = null;
@@ -25,13 +25,31 @@ try {
   logger.info(
     `🚀 EasyReaderADHD content script loaded — v${_version} — ${location.href}`,
   );
-  // 供开发者在控制台交互确认
   globalThis.__EasyReaderADHD = globalThis.__EasyReaderADHD || {};
   globalThis.__EasyReaderADHD.version = _version;
   globalThis.__EasyReaderADHD.startedAt = Date.now();
 } catch (e) {
-  // 仅记录到控制台，不中断执行
   logger.warn("无法读取扩展清单信息:", e);
+}
+
+// 停用插件：清除高亮、移除样式、断开观察者
+function disablePlugin() {
+  removeHighlights();
+  removeStyles();
+  if (domObserver) {
+    domObserver.disconnect();
+    domObserver = null;
+  }
+}
+
+// 启动 DOM 观察者（复用同一回调逻辑）
+function startObserver() {
+  domObserver = setupDOMObserver(currentSettings, (textNodes) => {
+    if (textNodes.length > 0) {
+      logger.observer(`动态内容: 处理 ${textNodes.length} 个文本节点`);
+      enqueueTextNodesForProcessing(textNodes, currentSettings);
+    }
+  });
 }
 
 async function initialize() {
@@ -39,7 +57,6 @@ async function initialize() {
 
   try {
     currentSettings = await loadSettings();
-    setLogEnabled(currentSettings?.debug !== false);
     logger.info("加载的设置:", currentSettings);
     updateProcessingSettings(currentSettings);
 
@@ -50,16 +67,7 @@ async function initialize() {
 
     applyStyles(currentSettings);
     await processPage(currentSettings);
-
-    // 启动高性能观察者
-    if (currentSettings.enabled) {
-      domObserver = setupDOMObserver(currentSettings, async (textNodes) => {
-        if (textNodes.length > 0) {
-          logger.observer(`动态内容: 处理 ${textNodes.length} 个文本节点`);
-          enqueueTextNodesForProcessing(textNodes, currentSettings);
-        }
-      });
-    }
+    startObserver();
 
     logger.info("插件初始化完成");
   } catch (error) {
@@ -86,12 +94,7 @@ function handleMessage(request, sender, sendResponse) {
     } else if (request.action === "disable") {
       currentSettings.enabled = false;
       updateProcessingSettings(currentSettings);
-      removeHighlights();
-      removeStyles();
-      if (domObserver) {
-        domObserver.disconnect();
-        domObserver = null;
-      }
+      disablePlugin();
       sendResponse({ success: true, message: "已禁用" });
     } else if (request.action === "updateSettings") {
       currentSettings = mergeSettings(currentSettings, request.settings);
@@ -100,21 +103,9 @@ function handleMessage(request, sender, sendResponse) {
       if (currentSettings.enabled) {
         removeHighlights();
         await processPage(currentSettings);
-        // 确保观察者已启动
-        if (!domObserver) {
-          domObserver = setupDOMObserver(currentSettings, async (textNodes) => {
-            if (textNodes.length > 0) {
-              enqueueTextNodesForProcessing(textNodes, currentSettings);
-            }
-          });
-        }
+        if (!domObserver) startObserver();
       } else {
-        removeHighlights();
-        removeStyles();
-        if (domObserver) {
-          domObserver.disconnect();
-          domObserver = null;
-        }
+        disablePlugin();
       }
       sendResponse({ success: true, message: "设置已更新" });
     } else if (request.action === "reprocess") {
@@ -155,7 +146,6 @@ onSettingsChange((newSettings) => {
           processPageInFlight = false;
         });
     } else {
-      // 已有 processPage 在运行，它会通过 latestSettings 自动拿到最新设置
       logger.info("onSettingsChange: processPage 正在运行，跳过重复启动");
     }
   } else {

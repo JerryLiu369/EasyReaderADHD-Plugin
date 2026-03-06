@@ -118,12 +118,13 @@ export function getEnabledDicts(settings) {
     .map(([dictId]) => dictId);
 }
 
-export async function processTextNode(textNode, settings) {
+export async function processTextNode(textNode, settings, dictIds) {
   if (shouldSkipTextNode(textNode)) return false;
   const text = textNode.textContent;
   if (!text.trim()) return false;
 
-  const dictIds = getEnabledDicts(settings);
+  // dictIds 由 processNodeList 批量计算后传入，避免每个节点重复调用 getEnabledDicts
+  if (!dictIds) dictIds = getEnabledDicts(settings);
   if (dictIds.length === 0) return false;
 
   const language = detectLanguage(text);
@@ -334,10 +335,9 @@ export function setupDOMObserver(settings, callback) {
 
         const allTextNodes = [];
         for (const el of elements) {
-          const nodes = collectTextNodesInContainer(el);
-          nodes.forEach((n) => allTextNodes.push(n));
+          allTextNodes.push(...collectTextNodesInContainer(el));
         }
-        directTextNodes.forEach((n) => allTextNodes.push(n));
+        allTextNodes.push(...directTextNodes);
 
         if (allTextNodes.length > 0 && typeof callback === "function") {
           callback(allTextNodes);
@@ -382,7 +382,10 @@ export function collectTextNodesInContainer(container) {
 
 export async function processNodeList(nodes, settings) {
   if (!nodes || nodes.length === 0) return 0;
-  return await processBatch(nodes, (node) => processTextNode(node, settings), {
+  // 计算一次 dictIds，通过闭包传给每个节点，避免每节点重复 O(n) 过滤
+  const dictIds = getEnabledDicts(settings);
+  if (dictIds.length === 0) return 0;
+  return await processBatch(nodes, (node) => processTextNode(node, settings, dictIds), {
     batchSize: 200,
     idleTimeout: 1000,
   });
