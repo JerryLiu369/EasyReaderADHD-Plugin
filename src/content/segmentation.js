@@ -123,7 +123,6 @@ export async function segmentCJKText(text, dictIds, settings) {
       continue;
     }
 
-
     let result = null;
     for (const [dictId, dictData] of dictMap) {
       if (dictData[testToken]) {
