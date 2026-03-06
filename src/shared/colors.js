@@ -24,21 +24,3 @@ export function hexToRgba(hex, alpha = 1) {
   return `rgba(${r}, ${g}, ${b}, ${a})`;
 }
 
-export function darkenColor(hex, percent) {
-  if (!hex || typeof hex !== "string") return "rgb(0, 0, 0)";
-  if (typeof percent !== "number") percent = 0;
-
-  const cleanHex = hex.replace("#", "");
-  if (cleanHex.length !== 6) return "rgb(0, 0, 0)";
-
-  let r = parseInt(cleanHex.substring(0, 2), 16);
-  let g = parseInt(cleanHex.substring(2, 4), 16);
-  let b = parseInt(cleanHex.substring(4, 6), 16);
-
-  const factor = Math.max(0, Math.min(100, percent)) / 100;
-  r = Math.floor(r * (1 - factor));
-  g = Math.floor(g * (1 - factor));
-  b = Math.floor(b * (1 - factor));
-
-  return `rgb(${r}, ${g}, ${b})`;
-}

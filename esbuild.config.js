@@ -4,6 +4,10 @@ import path from "path";
 
 const outDir = "dist";
 
+// watch 模式 / NODE_ENV=development 时视为开发构建
+const isDev =
+  process.argv.includes("--watch") || process.env.NODE_ENV === "development";
+
 const options = {
   entryPoints: {
     content: "src/content/index.js",
@@ -11,11 +15,15 @@ const options = {
   },
   outdir: outDir,
   bundle: true,
-  minify: true,
-  sourcemap: false,
+  minify: !isDev,
+  sourcemap: isDev ? "inline" : false,
   target: "es2020",
   format: "iife",
   logLevel: "info",
+  // 注入编译期常量，esbuild 会常量折叠并消除 if (false) 分支（生产包零日志开销）
+  define: {
+    "process.env.NODE_ENV": isDev ? '"development"' : '"production"',
+  },
 };
 
 async function build() {

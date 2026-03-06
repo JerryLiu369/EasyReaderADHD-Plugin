@@ -9,6 +9,7 @@ import { segmentCJKText, segmentSpaceBasedText } from "./segmentation.js";
 import { loadDictionaries, getWordSet } from "./dictionary.js";
 
 const STABLE_TEXT_DELAY = 800;
+const MAX_PENDING_NODES = 2000; // 防止动态页面节点无限积累
 const pendingTextNodes = new Set();
 let lastChangeMap = new WeakMap();
 let stableTimer = null;
@@ -59,6 +60,8 @@ export function enqueueTextNodesForProcessing(nodes, settings) {
   for (const node of nodes) {
     if (!node || node.nodeType !== Node.TEXT_NODE) continue;
     if (shouldSkipTextNode(node)) continue;
+    // 超过上限则丢弃，避免无限滚动页面内存无限增长
+    if (pendingTextNodes.size >= MAX_PENDING_NODES) break;
     lastChangeMap.set(node, now);
     pendingTextNodes.add(node);
     queued++;
@@ -99,8 +102,11 @@ function scheduleStableProcessing() {
       await processNodeList(ready, latestSettings);
     }
 
-    if (pendingTextNodes.size > 0) {
+    // 只有仍处于启用状态才重新调度，否则直接清空，避免僵尸计时器
+    if (pendingTextNodes.size > 0 && latestSettings?.enabled) {
       scheduleStableProcessing();
+    } else if (pendingTextNodes.size > 0) {
+      pendingTextNodes.clear();
     }
   }, STABLE_TEXT_DELAY);
 }
@@ -112,12 +118,13 @@ export function getEnabledDicts(settings) {
     .map(([dictId]) => dictId);
 }
 
-export async function processTextNode(textNode, settings) {
+export async function processTextNode(textNode, settings, dictIds) {
   if (shouldSkipTextNode(textNode)) return false;
   const text = textNode.textContent;
   if (!text.trim()) return false;
 
-  const dictIds = getEnabledDicts(settings);
+  // dictIds 由 processNodeList 批量计算后传入，避免每个节点重复调用 getEnabledDicts
+  if (!dictIds) dictIds = getEnabledDicts(settings);
   if (dictIds.length === 0) return false;
 
   const language = detectLanguage(text);
@@ -132,12 +139,11 @@ export async function processTextNode(textNode, settings) {
 
   if (!hasHighlight) return false;
 
-  try {
-    // 防御性检查：确保节点仍在文档树中（动态页面很常见，静默跳过）
-    if (!textNode.parentNode) {
-      return false;
-    }
+  // 提前捕获 parent 引用，避免 replaceChild 前后 parentNode 发生变化
+  const parent = textNode.parentNode;
+  if (!parent) return false;
 
+  try {
     const wrapper = document.createElement("span");
     wrapper.className = "adhd-processed";
     wrapper.setAttribute("data-adhd-processed", "1");
@@ -157,10 +163,11 @@ export async function processTextNode(textNode, settings) {
     });
 
     wrapper.appendChild(fragment);
-    textNode.parentNode.replaceChild(wrapper, textNode);
+    parent.replaceChild(wrapper, textNode);
     return true;
   } catch (error) {
-    logger.error("DOM替换失败:", error);
+    // replaceChild 失败时节点仍在原位，静默跳过即可
+    logger.warn("DOM替换跳过:", error.message);
     return false;
   }
 }
@@ -232,11 +239,15 @@ export async function processPage(settings) {
     return;
   }
 
-  updateProcessingSettings(settings);
+  // 注意：latestSettings 由调用方通过 updateProcessingSettings 设置，
+  // 这里不重复调用，避免覆盖并发消息带来的更新值。
 
   logger.info("开始处理页面...");
 
   try {
+    // 清空上一轮残留的待处理节点，避免重新处理时混入旧引用
+    clearPendingProcessing();
+
     // 1. 预加载所有启用的词典和词集（关键优化！）
     const dictIds = getEnabledDicts(settings);
     if (dictIds.length === 0) {
@@ -253,7 +264,13 @@ export async function processPage(settings) {
     logger.info(`找到 ${textNodes.length} 个文本节点`);
 
     // 3. 将节点加入稳定队列（避免流式输出被提前替换）
-    const queued = enqueueTextNodesForProcessing(textNodes, settings);
+    // 词典加载期间可能收到新的设置更新，优先使用 latestSettings
+    const settingsForQueue = latestSettings || settings;
+    if (!settingsForQueue?.enabled) {
+      logger.info("跳过入队: 词典加载期间设置已切换为禁用");
+      return;
+    }
+    const queued = enqueueTextNodesForProcessing(textNodes, settingsForQueue);
     logger.info(`页面文本已加入处理队列: ${queued} 个节点`);
   } catch (error) {
     logger.error("页面处理失败:", error);
@@ -318,10 +335,9 @@ export function setupDOMObserver(settings, callback) {
 
         const allTextNodes = [];
         for (const el of elements) {
-          const nodes = collectTextNodesInContainer(el);
-          nodes.forEach((n) => allTextNodes.push(n));
+          allTextNodes.push(...collectTextNodesInContainer(el));
         }
-        directTextNodes.forEach((n) => allTextNodes.push(n));
+        allTextNodes.push(...directTextNodes);
 
         if (allTextNodes.length > 0 && typeof callback === "function") {
           callback(allTextNodes);
@@ -366,7 +382,10 @@ export function collectTextNodesInContainer(container) {
 
 export async function processNodeList(nodes, settings) {
   if (!nodes || nodes.length === 0) return 0;
-  return await processBatch(nodes, (node) => processTextNode(node, settings), {
+  // 计算一次 dictIds，通过闭包传给每个节点，避免每节点重复 O(n) 过滤
+  const dictIds = getEnabledDicts(settings);
+  if (dictIds.length === 0) return 0;
+  return await processBatch(nodes, (node) => processTextNode(node, settings, dictIds), {
     batchSize: 200,
     idleTimeout: 1000,
   });

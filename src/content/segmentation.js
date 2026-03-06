@@ -31,11 +31,11 @@ function shouldHighlightPos(dictId, normalizedPos, settings) {
     return defaultHighlight;
   }
 
+  // normalizePos 只返回 "n" | "v" | "a" | "other"，与下面 key 一一对应
   const posMap = {
     n: "noun",
     v: "verb",
     a: "adj",
-    adv: "adj",
     other: "other",
   };
 
@@ -56,12 +56,15 @@ function shouldHighlightByDensity(settings) {
   return Math.random() < density / 100;
 }
 
+// 提取为常量，避免在每次调用中重新编译正则
+const STRIP_NON_WORD = /[^\w\-']/g;
+
 function forwardMaxMatch(text, wordSet) {
   const result = [];
   let i = 0;
   while (i < text.length) {
     let matchLen = 0;
-    for (let len = Math.min(8, text.length - i); len > 0; len--) {
+    for (let len = Math.min(8, text.length - i); len > 1; len--) {
       const word = text.slice(i, i + len);
       if (wordSet.has(word)) {
         matchLen = len;
@@ -79,10 +82,28 @@ function forwardMaxMatch(text, wordSet) {
   return result;
 }
 
+// 词性判断 + 密度控制后推入 segment，两处分词函数共用
+function pushSegment(segments, displayText, result, settings) {
+  if (result) {
+    const normalized = normalizePos(result.pos);
+    if (
+      shouldHighlightPos(result.dictId, normalized, settings) &&
+      normalized !== "other" &&
+      shouldHighlightByDensity(settings)
+    ) {
+      segments.push({ text: displayText, className: `adhd-${normalized}` });
+      return;
+    }
+  }
+  segments.push({ text: displayText });
+}
+
 export async function segmentCJKText(text, dictIds, settings) {
-  // 使用缓存的词集，避免每次都遍历词典
-  const allWords = await getWordSet(dictIds);
-  const dictMap = await loadDictionaries(dictIds);
+  // 并行加载词集和词典（均有缓存，首次调用可节省等待时间）
+  const [allWords, dictMap] = await Promise.all([
+    getWordSet(dictIds),
+    loadDictionaries(dictIds),
+  ]);
 
   if (allWords.size === 0) return [{ text }];
 
@@ -102,35 +123,15 @@ export async function segmentCJKText(text, dictIds, settings) {
       continue;
     }
 
-    // 忽略单字词，避免噪声高亮
-    if (testToken.length === 1) {
-      segments.push({ text: token });
-      continue;
-    }
-
     let result = null;
-    dictMap.forEach((dictData, dictId) => {
-      if (!result && dictData[testToken]) {
+    for (const [dictId, dictData] of dictMap) {
+      if (dictData[testToken]) {
         result = { dictId, pos: dictData[testToken].pos };
+        break;
       }
-    });
-
-    if (result) {
-      const normalized = normalizePos(result.pos);
-
-      // 检查是否应该高亮这个词性 + 密度控制
-      if (
-        shouldHighlightPos(result.dictId, normalized, settings) &&
-        normalized !== "other" &&
-        shouldHighlightByDensity(settings)
-      ) {
-        segments.push({ text: token, className: `adhd-${normalized}` });
-      } else {
-        segments.push({ text: token });
-      }
-    } else {
-      segments.push({ text: token });
     }
+
+    pushSegment(segments, token, result, settings);
   }
 
   return segments;
@@ -149,7 +150,7 @@ export async function segmentSpaceBasedText(text, dictIds, settings) {
       continue;
     }
 
-    const cleanWord = word.replace(/[^\w\-\']/g, "");
+    const cleanWord = word.replace(STRIP_NON_WORD, "");
     if (!cleanWord) {
       segments.push({ text: word });
       continue;
@@ -178,22 +179,7 @@ export async function segmentSpaceBasedText(text, dictIds, settings) {
       result = await lookupWord(cleanWord.slice(0, -3), dictIds);
     }
 
-    if (result) {
-      const normalized = normalizePos(result.pos);
-
-      // 检查是否应该高亮这个词性 + 密度控制
-      if (
-        shouldHighlightPos(result.dictId, normalized, settings) &&
-        normalized !== "other" &&
-        shouldHighlightByDensity(settings)
-      ) {
-        segments.push({ text: word, className: `adhd-${normalized}` });
-      } else {
-        segments.push({ text: word });
-      }
-    } else {
-      segments.push({ text: word });
-    }
+    pushSegment(segments, word, result, settings);
   }
 
   return segments;
