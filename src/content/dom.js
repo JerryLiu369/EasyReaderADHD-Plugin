@@ -102,8 +102,11 @@ function scheduleStableProcessing() {
       await processNodeList(ready, latestSettings);
     }
 
-    if (pendingTextNodes.size > 0) {
+    // 只有仍处于启用状态才重新调度，否则直接清空，避免僵尸计时器
+    if (pendingTextNodes.size > 0 && latestSettings?.enabled) {
       scheduleStableProcessing();
+    } else if (pendingTextNodes.size > 0) {
+      pendingTextNodes.clear();
     }
   }, STABLE_TEXT_DELAY);
 }
@@ -235,11 +238,15 @@ export async function processPage(settings) {
     return;
   }
 
-  updateProcessingSettings(settings);
+  // 注意：latestSettings 由调用方通过 updateProcessingSettings 设置，
+  // 这里不重复调用，避免覆盖并发消息带来的更新值。
 
   logger.info("开始处理页面...");
 
   try {
+    // 清空上一轮残留的待处理节点，避免重新处理时混入旧引用
+    clearPendingProcessing();
+
     // 1. 预加载所有启用的词典和词集（关键优化！）
     const dictIds = getEnabledDicts(settings);
     if (dictIds.length === 0) {
@@ -256,7 +263,13 @@ export async function processPage(settings) {
     logger.info(`找到 ${textNodes.length} 个文本节点`);
 
     // 3. 将节点加入稳定队列（避免流式输出被提前替换）
-    const queued = enqueueTextNodesForProcessing(textNodes, settings);
+    // 词典加载期间可能收到新的设置更新，优先使用 latestSettings
+    const settingsForQueue = latestSettings || settings;
+    if (!settingsForQueue?.enabled) {
+      logger.info("跳过入队: 词典加载期间设置已切换为禁用");
+      return;
+    }
+    const queued = enqueueTextNodesForProcessing(textNodes, settingsForQueue);
     logger.info(`页面文本已加入处理队列: ${queued} 个节点`);
   } catch (error) {
     logger.error("页面处理失败:", error);

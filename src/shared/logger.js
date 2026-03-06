@@ -1,34 +1,44 @@
 /**
  * 日志工具
+ *
+ * process.env.NODE_ENV 由 esbuild define 在编译期注入。
+ * 开发构建（npm run dev/watch）：DEV=true，所有日志输出。
+ * 生产构建（npm run build）：esbuild 将 if (false) 分支完全删除，零运行时开销。
+ *
+ * warn / error 无论构建模式始终输出，确保线上问题可见。
  */
 
-import { DEFAULT_SETTINGS } from "./constants.js";
-
-// 初始值从默认设置读取；运行时可通过 setLogEnabled() 动态调整
-let enabled = DEFAULT_SETTINGS.debug === true;
-
-/** 由 content script 在加载真实设置后调用，以便按用户配置开关日志 */
-export function setLogEnabled(value) {
-  enabled = !!value;
-}
+// eslint-disable-next-line no-undef
+const DEV = process.env.NODE_ENV === "development";
 
 export const logger = {
   info: (...args) => {
-    if (enabled) console.log("EasyReaderADHD:", ...args);
+    if (DEV) console.log("EasyReaderADHD:", ...args);
   },
   observer: (...args) => {
-    if (enabled) console.log("EasyReaderADHD [Observer]", ...args);
+    if (DEV) console.log("EasyReaderADHD [Observer]", ...args);
   },
   dict: (...args) => {
-    if (enabled) console.log("EasyReaderADHD [DICT]", ...args);
+    if (DEV) console.log("EasyReaderADHD [DICT]", ...args);
   },
   warn: (...args) => {
-    if (enabled) console.warn("EasyReaderADHD [WARN]:", ...args);
+    // 始终输出，不受构建模式影响
+    console.warn("EasyReaderADHD [WARN]:", ...args);
   },
   error: (...args) => {
-    if (enabled) console.error("EasyReaderADHD [ERROR]:", ...args);
+    // 始终输出，不受构建模式影响
+    console.error("EasyReaderADHD [ERROR]:", ...args);
   },
   debug: (...args) => {
-    if (enabled) console.debug("EasyReaderADHD [DEBUG]:", ...args);
+    if (DEV) console.debug("EasyReaderADHD [DEBUG]:", ...args);
   },
 };
+
+/**
+ * 保留此函数签名以兼容 index.js 中的 setLogEnabled 调用，
+ * 但在新的 process.env.NODE_ENV 方案下为空操作——
+ * 日志级别由编译期常量决定，不需要运行时切换。
+ */
+export function setLogEnabled(_value) {
+  // no-op: controlled by build-time process.env.NODE_ENV
+}

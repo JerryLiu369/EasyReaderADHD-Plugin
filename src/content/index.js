@@ -15,6 +15,7 @@ import { logger, setLogEnabled } from "../shared/logger.js";
 
 let currentSettings = null;
 let domObserver = null;
+let processPageInFlight = false; // 防止并发 processPage 调用互相覆盖设置
 
 // 证明模块已执行：打印版本与 URL，设置全局标识，便于调试
 try {
@@ -73,56 +74,65 @@ function handleMessage(request, sender, sendResponse) {
     currentSettings = { enabled: true, appearance: {}, dictionaries: {} };
   }
 
-  if (request.action === "enable") {
-    currentSettings.enabled = true;
-    updateProcessingSettings(currentSettings);
-    applyStyles(currentSettings);
-    processPage(currentSettings).catch((e) => logger.error("启用后处理失败:", e));
-    sendResponse({ success: true, message: "已启用" });
-  } else if (request.action === "disable") {
-    currentSettings.enabled = false;
-    updateProcessingSettings(currentSettings);
-    removeHighlights();
-    removeStyles();
-    if (domObserver) {
-      domObserver.disconnect();
-      domObserver = null;
-    }
-    sendResponse({ success: true, message: "已禁用" });
-  } else if (request.action === "updateSettings") {
-    currentSettings = mergeSettings(currentSettings, request.settings);
-    updateProcessingSettings(currentSettings);
-    applyStyles(currentSettings);
-    if (currentSettings.enabled) {
-      removeHighlights();
-      processPage(currentSettings).catch((e) => logger.error("设置更新后处理失败:", e));
-      // 确保观察者已启动
-      if (!domObserver) {
-        domObserver = setupDOMObserver(currentSettings, async (textNodes) => {
-          if (textNodes.length > 0) {
-            enqueueTextNodesForProcessing(textNodes, currentSettings);
-          }
-        });
-      }
-    } else {
+  // 包裹在 async IIFE 中，以便正确 await processPage 并统一捕获错误
+  // 外层函数 return true 告知 Chrome 消息通道保持开启，等待异步 sendResponse
+  (async () => {
+    if (request.action === "enable") {
+      currentSettings.enabled = true;
+      updateProcessingSettings(currentSettings);
+      applyStyles(currentSettings);
+      await processPage(currentSettings);
+      sendResponse({ success: true, message: "已启用" });
+    } else if (request.action === "disable") {
+      currentSettings.enabled = false;
+      updateProcessingSettings(currentSettings);
       removeHighlights();
       removeStyles();
       if (domObserver) {
         domObserver.disconnect();
         domObserver = null;
       }
-    }
-    sendResponse({ success: true, message: "设置已更新" });
-  } else if (request.action === "reprocess") {
-    if (currentSettings.enabled) {
+      sendResponse({ success: true, message: "已禁用" });
+    } else if (request.action === "updateSettings") {
+      currentSettings = mergeSettings(currentSettings, request.settings);
       updateProcessingSettings(currentSettings);
-      removeHighlights();
-      processPage(currentSettings).catch((e) => logger.error("重新处理失败:", e));
-      sendResponse({ success: true, message: "已重新处理" });
-    } else {
-      sendResponse({ success: false, message: "插件已禁用" });
+      applyStyles(currentSettings);
+      if (currentSettings.enabled) {
+        removeHighlights();
+        await processPage(currentSettings);
+        // 确保观察者已启动
+        if (!domObserver) {
+          domObserver = setupDOMObserver(currentSettings, async (textNodes) => {
+            if (textNodes.length > 0) {
+              enqueueTextNodesForProcessing(textNodes, currentSettings);
+            }
+          });
+        }
+      } else {
+        removeHighlights();
+        removeStyles();
+        if (domObserver) {
+          domObserver.disconnect();
+          domObserver = null;
+        }
+      }
+      sendResponse({ success: true, message: "设置已更新" });
+    } else if (request.action === "reprocess") {
+      if (currentSettings.enabled) {
+        updateProcessingSettings(currentSettings);
+        removeHighlights();
+        await processPage(currentSettings);
+        sendResponse({ success: true, message: "已重新处理" });
+      } else {
+        sendResponse({ success: false, message: "插件已禁用" });
+      }
     }
-  }
+  })().catch((error) => {
+    logger.error("消息处理失败:", error);
+    sendResponse({ success: false, message: "内部错误" });
+  });
+
+  return true; // 保持消息通道开启，等待异步 sendResponse
 }
 
 chrome.runtime.onMessage.addListener(handleMessage);
@@ -135,9 +145,19 @@ onSettingsChange((newSettings) => {
   if (currentSettings?.enabled) {
     applyStyles(currentSettings);
     removeHighlights();
-    processPage(currentSettings).catch((error) => {
-      logger.error("设置变化后处理失败:", error);
-    });
+    if (!processPageInFlight) {
+      processPageInFlight = true;
+      processPage(currentSettings)
+        .catch((error) => {
+          logger.error("设置变化后处理失败:", error);
+        })
+        .finally(() => {
+          processPageInFlight = false;
+        });
+    } else {
+      // 已有 processPage 在运行，它会通过 latestSettings 自动拿到最新设置
+      logger.info("onSettingsChange: processPage 正在运行，跳过重复启动");
+    }
   } else {
     removeHighlights();
     removeStyles();
