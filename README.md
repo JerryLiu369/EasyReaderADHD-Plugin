@@ -4,8 +4,7 @@
 
 通过智能词性高亮与可调节的高亮密度，帮助在阅读长文时保持专注，减少视觉疲劳。
 
-<!-- TODO: 上线后补充 Chrome Web Store 链接 -->
-<!-- [**→ 在 Chrome Web Store 安装**](https://chromewebstore.google.com/detail/xxx) -->
+[**→ 在 Chrome Web Store 安装**](https://chromewebstore.google.com/detail/easyreaderadhd-%E9%98%85%E8%AF%BB%E8%BE%85%E5%8A%A9/fehidohphlmehflknafhmmljgniangfp)
 
 ---
 
@@ -20,8 +19,7 @@
 
 ### Chrome Web Store（推荐）
 
-<!-- TODO: 补充链接 -->
-在 Chrome Web Store 搜索 **EasyReaderADHD** 并点击安装。
+直接访问 [Chrome Web Store 页面](https://chromewebstore.google.com/detail/easyreaderadhd-%E9%98%85%E8%AF%BB%E8%BE%85%E5%8A%A9/fehidohphlmehflknafhmmljgniangfp) 并点击安装。
 
 ### 开发者模式（本地加载）
 
