@@ -1,75 +1,80 @@
-# EasyReaderADHD Plugin
+# EasyReaderADHD
 
-> 为 ADHD 和阅读困难用户设计的轻量级 Chrome 阅读辅助扩展。
+> 为 ADHD 和阅读困难用户设计的 Chrome 阅读辅助扩展
 
-通过智能词性高亮与可调节的高亮密度，帮助用户在阅读长文时保持专注，减少视觉疲劳。
+通过智能词性高亮与可调节的高亮密度，帮助在阅读长文时保持专注，减少视觉疲劳。
 
-## ✨ 核心特性
+<!-- TODO: 上线后补充 Chrome Web Store 链接 -->
+<!-- [**→ 在 Chrome Web Store 安装**](https://chromewebstore.google.com/detail/xxx) -->
 
-- **智能分词高亮**：基于本地词典自动识别名词、动词、形容词并区分颜色。
-- **高亮密度控制**：支持 **0-100% 随机密度调节**，避免满屏色彩造成的视觉过载。
-- **个性化阅读流**：支持调节字间距、字体大小、粗细及多种配色主题（柔和、高对比等）。
-- **完全离线隐私**：所有计算在本地完成，无需网络请求，零数据收集。
+---
 
-## 🚀 安装与使用
+## 功能
 
-### 安装方法
+- **词性高亮**：基于本地词典自动识别名词、动词、形容词，分色高亮
+- **高亮密度控制**：0–100% 随机密度，避免满屏色彩造成视觉过载
+- **排版定制**：调节字间距、字体大小、字重，多种配色主题可选
+- **完全离线**：所有计算在本地完成，无网络请求，不收集任何数据
 
-1. **获取代码**：克隆或下载本仓库。
-2. **加载扩展**：
-   - 在 Chrome 地址栏输入 `chrome://extensions/` 进入扩展管理页。
-   - 开启右上角的 **"开发者模式" (Developer mode)**。
-   - 点击 **"加载已解压的扩展程序" (Load unpacked)**。
-   - 选择本项目的**根目录**文件夹。
+## 安装
 
-### 功能配置
-点击浏览器工具栏的插件图标即可弹出设置面板：
-- **密度滑块**：拖动滑块调整页面上高亮词汇的百分比。
-- **词性开关**：独立控制是否高亮名词、动词或形容词。
-- **外观定制**：快速切换预设颜色主题或手动调整排版参数。
+### Chrome Web Store（推荐）
 
-## 🛠️ 开发指南
+<!-- TODO: 补充链接 -->
+在 Chrome Web Store 搜索 **EasyReaderADHD** 并点击安装。
 
-本项目使用 Manifest V3 标准开发，利用 `esbuild` 进行模块化构建。
+### 开发者模式（本地加载）
 
-### 1. 环境准备
-确保本地已安装 Node.js 和 npm。
-
-### 2. 初始化与构建
-首次开发前需安装依赖：
 ```bash
+git clone <本仓库地址>
+cd EasyReaderADHD-Plugin
 npm install
+npm run build
 ```
 
-**构建命令**：
+然后：
+
+1. 打开 `chrome://extensions/`
+2. 开启右上角 **开发者模式**
+3. 点击 **加载已解压的扩展程序**，选择项目根目录
+
+## 使用
+
+点击浏览器工具栏的插件图标打开设置面板：
+
+| 设置项 | 说明 |
+|--------|------|
+| 密度滑块 | 控制页面上高亮词汇的比例 |
+| 词性开关 | 独立开关名词 / 动词 / 形容词的高亮 |
+| 外观主题 | 预设配色方案，或手动调整排版参数 |
+
+## 开发
+
+### 构建命令
 
 | 命令 | 说明 |
 |------|------|
-| `npm run build` | 执行单次生产环境构建，输出至 `dist/` 目录 |
-| `npm run watch` | 开启监听模式，源代码修改后自动重新构建 |
+| `npm run build` | 单次生产构建，输出至 `dist/` |
+| `npm run watch` | 监听模式，源码变更后自动重构建 |
 
-### 3. 项目结构
-核心逻辑位于 `src/`，构建产物位于 `dist/`。
+构建完成后，去 `chrome://extensions/` 点击刷新图标重新加载插件。
 
-```text
-Project Root
-├── dist/               # 构建输出目录 (content.js, background.js)
+### 项目结构
+
+```
+EasyReaderADHD-Plugin/
 ├── src/
-│   ├── background/     # Service Worker 逻辑
-│   ├── content/        # 页面注入脚本 (分词算法、DOM 操作)
-│   ├── popup/          # 设置面板 (HTML/JS)
-│   ├── dictionaries/   # 本地词典 (JSON 格式)
-│   ├── static/         # 静态资源 (图标等)
-│   └── styles.css      # 注入页面的核心样式
-├── esbuild.config.js   # 构建配置文件
-└── manifest.json       # Chrome 扩展清单文件
+│   ├── background/     # Service Worker
+│   ├── content/        # 页面注入脚本（分词、DOM 操作）
+│   ├── popup/          # 设置面板
+│   ├── dictionaries/   # 本地词典（JSON）
+│   ├── static/         # 图标等静态资源
+│   └── styles.css      # 注入页面的样式
+├── dist/               # 构建输出
+├── esbuild.config.js
+└── manifest.json
 ```
 
-### 4. 调试建议
-- 修改 `src/` 下的代码后，需运行构建命令。
-- 构建完成后，去扩展管理页点击 **刷新图标** 重新加载插件。
-- 推荐使用 `npm run watch`，配合 Chrome 的 extension reloader 插件可实现热更新体验。
+## License
 
-## 📄 License
-
-[MIT License](LICENSE)
+[MIT](LICENSE)
