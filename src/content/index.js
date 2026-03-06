@@ -11,7 +11,7 @@ import {
   enqueueTextNodesForProcessing,
   updateProcessingSettings,
 } from "./dom.js";
-import { logger } from "../shared/logger.js";
+import { logger, setLogEnabled } from "../shared/logger.js";
 
 let currentSettings = null;
 let domObserver = null;
@@ -38,6 +38,7 @@ async function initialize() {
 
   try {
     currentSettings = await loadSettings();
+    setLogEnabled(currentSettings?.debug !== false);
     logger.info("加载的设置:", currentSettings);
     updateProcessingSettings(currentSettings);
 
@@ -76,7 +77,7 @@ function handleMessage(request, sender, sendResponse) {
     currentSettings.enabled = true;
     updateProcessingSettings(currentSettings);
     applyStyles(currentSettings);
-    processPage(currentSettings);
+    processPage(currentSettings).catch((e) => logger.error("启用后处理失败:", e));
     sendResponse({ success: true, message: "已启用" });
   } else if (request.action === "disable") {
     currentSettings.enabled = false;
@@ -94,7 +95,7 @@ function handleMessage(request, sender, sendResponse) {
     applyStyles(currentSettings);
     if (currentSettings.enabled) {
       removeHighlights();
-      processPage(currentSettings);
+      processPage(currentSettings).catch((e) => logger.error("设置更新后处理失败:", e));
       // 确保观察者已启动
       if (!domObserver) {
         domObserver = setupDOMObserver(currentSettings, async (textNodes) => {
@@ -116,7 +117,7 @@ function handleMessage(request, sender, sendResponse) {
     if (currentSettings.enabled) {
       updateProcessingSettings(currentSettings);
       removeHighlights();
-      processPage(currentSettings);
+      processPage(currentSettings).catch((e) => logger.error("重新处理失败:", e));
       sendResponse({ success: true, message: "已重新处理" });
     } else {
       sendResponse({ success: false, message: "插件已禁用" });

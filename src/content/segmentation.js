@@ -56,6 +56,9 @@ function shouldHighlightByDensity(settings) {
   return Math.random() < density / 100;
 }
 
+// 提取为常量，避免在每次调用中重新编译正则
+const STRIP_NON_WORD = /[^\w\-']/g;
+
 function forwardMaxMatch(text, wordSet) {
   const result = [];
   let i = 0;
@@ -109,11 +112,12 @@ export async function segmentCJKText(text, dictIds, settings) {
     }
 
     let result = null;
-    dictMap.forEach((dictData, dictId) => {
-      if (!result && dictData[testToken]) {
+    for (const [dictId, dictData] of dictMap) {
+      if (dictData[testToken]) {
         result = { dictId, pos: dictData[testToken].pos };
+        break;
       }
-    });
+    }
 
     if (result) {
       const normalized = normalizePos(result.pos);
@@ -149,7 +153,7 @@ export async function segmentSpaceBasedText(text, dictIds, settings) {
       continue;
     }
 
-    const cleanWord = word.replace(/[^\w\-\']/g, "");
+    const cleanWord = word.replace(STRIP_NON_WORD, "");
     if (!cleanWord) {
       segments.push({ text: word });
       continue;

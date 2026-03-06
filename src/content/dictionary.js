@@ -6,11 +6,18 @@ import { DICT_FILES } from "../shared/constants.js";
 import { logger } from "../shared/logger.js";
 
 const dictCache = new Map();
+const pendingDictLoads = new Map(); // 防止并发重复加载同一词典
 const wordSetCache = new Map(); // 缓存词集，避免重复构建
+const pendingWordSets = new Map(); // 防止并发重复构建同一词集
 
 export async function loadDictionary(dictId) {
   if (dictCache.has(dictId)) {
     return dictCache.get(dictId);
+  }
+
+  // 已有进行中的请求，直接复用，避免重复 fetch
+  if (pendingDictLoads.has(dictId)) {
+    return pendingDictLoads.get(dictId);
   }
 
   const filePath = DICT_FILES[dictId];
@@ -19,19 +26,26 @@ export async function loadDictionary(dictId) {
     return null;
   }
 
-  try {
-    const response = await fetch(chrome.runtime.getURL(filePath));
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
-    const dictData =
-      data?.words && typeof data.words === "object" ? data.words : data;
-    dictCache.set(dictId, dictData);
-    logger.dict(`已加载词典: ${dictId} (${Object.keys(dictData).length} 条目)`);
-    return dictData;
-  } catch (error) {
-    logger.error(`加载词典失败 ${dictId}:`, error);
-    return null;
-  }
+  const promise = (async () => {
+    try {
+      const response = await fetch(chrome.runtime.getURL(filePath));
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      const dictData =
+        data?.words && typeof data.words === "object" ? data.words : data;
+      dictCache.set(dictId, dictData);
+      logger.dict(`已加载词典: ${dictId} (${Object.keys(dictData).length} 条目)`);
+      return dictData;
+    } catch (error) {
+      logger.error(`加载词典失败 ${dictId}:`, error);
+      return null;
+    } finally {
+      pendingDictLoads.delete(dictId);
+    }
+  })();
+
+  pendingDictLoads.set(dictId, promise);
+  return promise;
 }
 
 export async function loadDictionaries(dictIds) {
@@ -46,23 +60,35 @@ export async function loadDictionaries(dictIds) {
 
 // 获取词集（用于分词），带缓存
 export async function getWordSet(dictIds) {
-  const cacheKey = dictIds.sort().join(",");
+  // 用副本排序，避免 mutate 传入的数组
+  const cacheKey = [...dictIds].sort().join(",");
 
   if (wordSetCache.has(cacheKey)) {
     return wordSetCache.get(cacheKey);
   }
 
-  const dictMap = await loadDictionaries(dictIds);
-  const wordSet = new Set();
+  // 已有进行中的构建，直接复用
+  if (pendingWordSets.has(cacheKey)) {
+    return pendingWordSets.get(cacheKey);
+  }
 
-  dictMap.forEach((dictData) => {
-    Object.keys(dictData).forEach((word) => wordSet.add(word));
-  });
+  const promise = (async () => {
+    try {
+      const dictMap = await loadDictionaries(dictIds);
+      const wordSet = new Set();
+      dictMap.forEach((dictData) => {
+        Object.keys(dictData).forEach((word) => wordSet.add(word));
+      });
+      wordSetCache.set(cacheKey, wordSet);
+      logger.dict(`构建词集缓存: ${cacheKey} (${wordSet.size} 词)`);
+      return wordSet;
+    } finally {
+      pendingWordSets.delete(cacheKey);
+    }
+  })();
 
-  wordSetCache.set(cacheKey, wordSet);
-  logger.dict(`构建词集缓存: ${dictIds.join(",")} (${wordSet.size} 词)`);
-
-  return wordSet;
+  pendingWordSets.set(cacheKey, promise);
+  return promise;
 }
 
 export async function lookupWord(word, dictIds) {
@@ -71,13 +97,10 @@ export async function lookupWord(word, dictIds) {
   const dictMap = await loadDictionaries(dictIds);
   const lowerWord = word.toLowerCase();
 
-  // O(1) 直接查找，不要遍历！
   for (const [dictId, dictData] of dictMap) {
-    // 尝试原始词
     if (dictData[word]) {
       return { dictId, pos: dictData[word].pos };
     }
-    // 尝试小写
     if (dictData[lowerWord]) {
       return { dictId, pos: dictData[lowerWord].pos };
     }

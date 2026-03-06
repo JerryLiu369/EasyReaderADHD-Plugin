@@ -2,29 +2,33 @@
  * 日志工具
  */
 
-// 日志开关配置 - 仅开发者可修改此常量
-// 设置为 false 可关闭所有日志输出，适用于生产环境
-const ENABLE_LOGGING = false;
+import { DEFAULT_SETTINGS } from "./constants.js";
+
+// 初始值从默认设置读取；运行时可通过 setLogEnabled() 动态调整
+let enabled = DEFAULT_SETTINGS.debug === true;
+
+/** 由 content script 在加载真实设置后调用，以便按用户配置开关日志 */
+export function setLogEnabled(value) {
+  enabled = !!value;
+}
 
 export const logger = {
   info: (...args) => {
-    if (ENABLE_LOGGING) console.log("EasyReaderADHD:", ...args);
+    if (enabled) console.log("EasyReaderADHD:", ...args);
   },
   observer: (...args) => {
-    if (ENABLE_LOGGING) console.log("EasyReaderADHD [Observer]", ...args);
+    if (enabled) console.log("EasyReaderADHD [Observer]", ...args);
   },
   dict: (...args) => {
-    if (ENABLE_LOGGING) console.log("EasyReaderADHD [DICT]", ...args);
+    if (enabled) console.log("EasyReaderADHD [DICT]", ...args);
   },
   warn: (...args) => {
-    if (ENABLE_LOGGING) console.warn("EasyReaderADHD [WARN]:", ...args);
+    if (enabled) console.warn("EasyReaderADHD [WARN]:", ...args);
   },
   error: (...args) => {
-    if (ENABLE_LOGGING) console.error("EasyReaderADHD [ERROR]:", ...args);
+    if (enabled) console.error("EasyReaderADHD [ERROR]:", ...args);
   },
   debug: (...args) => {
-    if (ENABLE_LOGGING && globalThis._adhdSettings?.debug) {
-      console.debug("EasyReaderADHD [DEBUG]:", ...args);
-    }
+    if (enabled) console.debug("EasyReaderADHD [DEBUG]:", ...args);
   },
 };

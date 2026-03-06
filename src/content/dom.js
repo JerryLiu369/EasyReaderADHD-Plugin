@@ -9,6 +9,7 @@ import { segmentCJKText, segmentSpaceBasedText } from "./segmentation.js";
 import { loadDictionaries, getWordSet } from "./dictionary.js";
 
 const STABLE_TEXT_DELAY = 800;
+const MAX_PENDING_NODES = 2000; // 防止动态页面节点无限积累
 const pendingTextNodes = new Set();
 let lastChangeMap = new WeakMap();
 let stableTimer = null;
@@ -59,6 +60,8 @@ export function enqueueTextNodesForProcessing(nodes, settings) {
   for (const node of nodes) {
     if (!node || node.nodeType !== Node.TEXT_NODE) continue;
     if (shouldSkipTextNode(node)) continue;
+    // 超过上限则丢弃，避免无限滚动页面内存无限增长
+    if (pendingTextNodes.size >= MAX_PENDING_NODES) break;
     lastChangeMap.set(node, now);
     pendingTextNodes.add(node);
     queued++;
@@ -132,12 +135,11 @@ export async function processTextNode(textNode, settings) {
 
   if (!hasHighlight) return false;
 
-  try {
-    // 防御性检查：确保节点仍在文档树中（动态页面很常见，静默跳过）
-    if (!textNode.parentNode) {
-      return false;
-    }
+  // 提前捕获 parent 引用，避免 replaceChild 前后 parentNode 发生变化
+  const parent = textNode.parentNode;
+  if (!parent) return false;
 
+  try {
     const wrapper = document.createElement("span");
     wrapper.className = "adhd-processed";
     wrapper.setAttribute("data-adhd-processed", "1");
@@ -157,10 +159,11 @@ export async function processTextNode(textNode, settings) {
     });
 
     wrapper.appendChild(fragment);
-    textNode.parentNode.replaceChild(wrapper, textNode);
+    parent.replaceChild(wrapper, textNode);
     return true;
   } catch (error) {
-    logger.error("DOM替换失败:", error);
+    // replaceChild 失败时节点仍在原位，静默跳过即可
+    logger.warn("DOM替换跳过:", error.message);
     return false;
   }
 }
