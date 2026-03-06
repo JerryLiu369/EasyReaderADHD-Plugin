@@ -2,7 +2,7 @@
  * Content Script 入口点
  */
 
-import { loadSettings, mergeSettings, onSettingsChange } from "./settings.js";
+import { loadSettings, mergeSettings, onSettingsChange, ensureSettingsStructure } from "./settings.js";
 import { applyStyles, removeStyles } from "./styles.js";
 import {
   processPage,
@@ -71,7 +71,7 @@ function handleMessage(request, sender, sendResponse) {
   logger.debug("接收消息:", request.action);
 
   if (!currentSettings) {
-    currentSettings = { enabled: true, appearance: {}, dictionaries: {} };
+    currentSettings = ensureSettingsStructure(null);
   }
 
   // 包裹在 async IIFE 中，以便正确 await processPage 并统一捕获错误

@@ -314,10 +314,11 @@ function bindInput(id, handler) {
 }
 
 function updateColorsFromUI() {
+  const existing = currentState.appearance.colors || {};
   currentState.appearance.colors = {
-    noun: document.getElementById("colorNoun").value,
-    verb: document.getElementById("colorVerb").value,
-    adj: document.getElementById("colorAdj").value,
-    other: document.getElementById("colorOther").value,
+    noun: document.getElementById("colorNoun")?.value ?? existing.noun,
+    verb: document.getElementById("colorVerb")?.value ?? existing.verb,
+    adj: document.getElementById("colorAdj")?.value ?? existing.adj,
+    other: document.getElementById("colorOther")?.value ?? existing.other,
   };
 }

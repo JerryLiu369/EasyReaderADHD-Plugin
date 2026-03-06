@@ -31,11 +31,11 @@ function shouldHighlightPos(dictId, normalizedPos, settings) {
     return defaultHighlight;
   }
 
+  // normalizePos 只返回 "n" | "v" | "a" | "other"，与下面 key 一一对应
   const posMap = {
     n: "noun",
     v: "verb",
     a: "adj",
-    adv: "adj",
     other: "other",
   };
 
