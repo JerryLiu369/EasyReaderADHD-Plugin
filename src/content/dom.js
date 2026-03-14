@@ -26,6 +26,9 @@ function shouldSkipTextNode(node) {
   }
   const tag = parent.tagName.toLowerCase();
   if (IGNORED_TAGS.includes(tag)) return true;
+  // 跳过 contenteditable 区域（AI chatbot 等富文本输入框），
+  // 避免高亮替换 DOM 导致光标位置被重置
+  if (parent.isContentEditable) return true;
   if (!node.textContent || !node.textContent.trim()) return true;
   return false;
 }

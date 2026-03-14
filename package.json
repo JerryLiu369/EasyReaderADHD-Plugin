@@ -1,6 +1,6 @@
 {
     "name": "easy-reader-adhd",
-    "version": "1.0.2",
+    "version": "1.1.1",
     "description": "ADHD-friendly reading extension with dictionary-based word highlighting",
     "type": "module",
     "scripts": {
