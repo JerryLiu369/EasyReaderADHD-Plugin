@@ -1,0 +1,92 @@
+[
+ {
+  "variant": "A-baseline",
+  "id": 2,
+  "p_at_k": 0.833,
+  "p_at_3": 1.0,
+  "mean_key": 0.545,
+  "mean_dis": 0.268,
+  "in_tok": 1200,
+  "tok_per_q": 120.0
+ },
+ {
+  "variant": "A-baseline",
+  "id": 7,
+  "p_at_k": 1.0,
+  "p_at_3": 1.0,
+  "mean_key": 0.712,
+  "mean_dis": 0.285,
+  "in_tok": 1200,
+  "tok_per_q": 120.0
+ },
+ {
+  "variant": "A-baseline",
+  "id": 15,
+  "p_at_k": 0.8,
+  "p_at_3": 1.0,
+  "mean_key": 0.682,
+  "mean_dis": 0.205,
+  "in_tok": 1200,
+  "tok_per_q": 133.3
+ },
+ {
+  "variant": "B-short",
+  "id": 2,
+  "p_at_k": 0.833,
+  "p_at_3": 1.0,
+  "mean_key": 0.697,
+  "mean_dis": 0.295,
+  "in_tok": 610,
+  "tok_per_q": 61.0
+ },
+ {
+  "variant": "B-short",
+  "id": 7,
+  "p_at_k": 0.833,
+  "p_at_3": 1.0,
+  "mean_key": 0.778,
+  "mean_dis": 0.585,
+  "in_tok": 618,
+  "tok_per_q": 61.8
+ },
+ {
+  "variant": "B-short",
+  "id": 15,
+  "p_at_k": 0.8,
+  "p_at_3": 1.0,
+  "mean_key": 0.688,
+  "mean_dis": 0.287,
+  "in_tok": 646,
+  "tok_per_q": 71.8
+ },
+ {
+  "variant": "C-choice",
+  "id": 2,
+  "p_at_k": 1.0,
+  "p_at_3": 1.0,
+  "mean_key": 0.167,
+  "mean_dis": 0.0,
+  "in_tok": 503,
+  "tok_per_q": 50.3
+ },
+ {
+  "variant": "C-choice",
+  "id": 7,
+  "p_at_k": 0.833,
+  "p_at_3": 1.0,
+  "mean_key": 0.165,
+  "mean_dis": 0.003,
+  "in_tok": 511,
+  "tok_per_q": 51.1
+ },
+ {
+  "variant": "C-choice",
+  "id": 15,
+  "p_at_k": 1.0,
+  "p_at_3": 1.0,
+  "mean_key": 0.2,
+  "mean_dis": 0.0,
+  "in_tok": 552,
+  "tok_per_q": 61.3
+ }
+]

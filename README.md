@@ -76,3 +76,14 @@ EasyReaderADHD-Plugin/
 ## License
 
 [MIT](LICENSE)
+
+---
+
+## 研究存档（research/）
+
+`research/` 目录存放本插件的后续研究：**基于 Jev 的中文阅读加粗算法**（定位未定，先存工作记录，后续统一整理）。
+
+- 设计文档：`research/docs/`（概念 → 老方案病根 → Jev 机制 → 架构 → 呈现设计 → 算法管线 v14）
+- 评测与原型：`research/eval/`（语料、评测脚本、渲染页、编年史 `00-results.md`）
+- 现状：v14 冻结，prompt en-v3 冻结；E1 端到端覆盖率 0.518，holdout 0.462；约 3400 次 Jev 请求 ≈ $0.25
+- 入口：`research/README.md`
